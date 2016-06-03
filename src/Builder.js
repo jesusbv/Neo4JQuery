@@ -1,7 +1,8 @@
 "use strict";
 
 var _instance = null
-  , _ = require('underscore');
+  , _ = require('underscore')
+  , LinkedList = require('node-linkedlist');
 
 /**
  * @todo Implement options objects as method signature to pass in parameter into builder methods.
@@ -20,16 +21,16 @@ var Builder = function() {
   this.CREATE = 4;
   this.CREATE_UNIQUE = 5;
   this.DELETE = 6;
-  this.MERGE =7;
+  this.MERGE = 7;
   
-  this.AGGREGATE_SUM=1;
-  this.AGGREGATE_COUNT=2;
-  this.AGGREGATE_AVG=3;
-  this.AGGREGATE_MIN=4;
-  this.AGGREGATE_MAX=5;
-  this.AGGREGATE_COLLECT=6;
-  this.AGGREGATE_FILTER=7;
-  this.AGGREGATE_EXTRACT=8;
+  this.AGGREGATE_SUM = 1;
+  this.AGGREGATE_COUNT = 2;
+  this.AGGREGATE_AVG = 3;
+  this.AGGREGATE_MIN = 4;
+  this.AGGREGATE_MAX = 5;
+  this.AGGREGATE_COLLECT = 6;
+  this.AGGREGATE_FILTER = 7;
+  this.AGGREGATE_EXTRACT = 8;
   
   /**
    *
