@@ -1,5 +1,4 @@
 var configuration = require('./configuration')
-  , seraph = require('seraph')(configuration)
-  , neo4jquery = require('../src/neo4jquery').setConnection(seraph);
+  , neo4jquery = require('../src/neo4jquery').singleton(configuration);
 
 module.exports = neo4jquery;
