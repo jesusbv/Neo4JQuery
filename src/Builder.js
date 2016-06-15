@@ -8,12 +8,11 @@ var _instance = null
  * @todo Implement options objects as method signature to pass in parameter into builder methods.
  */
 var Builder = function() {
-  "use strict";
-
   var queries = []
     , QueryPlaceholders = []
     , uniqueIds = []
-    , parameters = {};
+    , parameters = {}
+    , _counter = 0;
 
   this.MATCH = 1;
   this.OPTIONAL_MATCH = 2;
@@ -31,16 +30,13 @@ var Builder = function() {
   this.AGGREGATE_COLLECT = 6;
   this.AGGREGATE_FILTER = 7;
   this.AGGREGATE_EXTRACT = 8;
-  
+
   /**
    *
    * @returns {string}
-   * @todo Implement 'returned' with aliases!!
    */
-  this.getQuery = function(aliases) {
-    "use strict";
-
-    aliases = (aliases && !_.isEmpty(aliases)) ? _.keys(aliases) : [];
+  this.getQuery = function(labelMap) {
+    labelMap = (labelMap && !_.isEmpty(labelMap)) ? _.keys(labelMap) : [];
 
     var me = this
       , query = "";
@@ -50,13 +46,13 @@ var Builder = function() {
       query = queries.join('');
 
       // Get the placeholders for return them...
-      if (aliases.length == 0 && Array.isArray(QueryPlaceholders) && QueryPlaceholders.length > 0) {
+      if (labelMap.length == 0 && Array.isArray(QueryPlaceholders) && QueryPlaceholders.length > 0) {
         // Return placeholders.
         query += ' RETURN ' + QueryPlaceholders.join(', ');
       } else {
         // ... or have given placeholder to return.
-        aliases = _.unique(aliases);
-        query += ' RETURN ' + aliases.join(', ');
+        labelMap = _.unique(labelMap);
+        query += ' RETURN ' + labelMap.join(', ');
       }
     }
 
@@ -68,8 +64,6 @@ var Builder = function() {
    * @returns {object}
    */
   this.getParameters = function() {
-    "use strict";
-
     return parameters;
   };
 
@@ -78,9 +72,23 @@ var Builder = function() {
    * @returns {boolean}
    */
   this.hasQueries = function() {
-    "use strict";
-
     return (queries.length > 0);
+  };
+
+  /**
+   *
+   * @param placeholder
+   * @param label
+   * @param parameter
+   * @constructor
+   */
+  this.Start = function(placeholder, label, parameter) {
+    placeholder = placeholder || ++_counter;
+    label = label || '';
+    parameter = parameter || {};
+
+    queries.push(this.getNodeQuery(placeholder, label, parameter, this.START));
+    QueryPlaceholders.push(placeholder);
   };
 
   /**
@@ -91,26 +99,15 @@ var Builder = function() {
    * @param parameter
    * @returns {Builder}
    */
-  this.Match = function(placeholder, label, optional, parameter) {
-    "use strict";
+  this.Match = function(placeholder, label, parameter, optional) {
+    optional = (optional === true);
 
-    if(typeof optional !== 'boolean') {
-        parameter = optional;
-        optional = false;
-    }
-    var query = '';
-
-    if (optional === true) {
-        query = ' OPTIONAL MATCH ';
-    } else {
-    	query = ' MATCH ';
-	  }
-
-    query += this.getNodeQuery(placeholder, label, parameter);
-    queries.push(query);
+    if (optional === true)
+      queries.push(this.getNodeQuery(placeholder, label, parameter, this.OPTIONAL_MATCH));
+    else
+      queries.push(this.getNodeQuery(placeholder, label, parameter, this.MATCH));
 
     QueryPlaceholders.push(placeholder);
-
     return this;
   };
 
@@ -123,25 +120,7 @@ var Builder = function() {
    * @constructor
    */
   this.OptionalMatch = function(placeholder, label, parameter) {
-    "use strict";
-
-    return this.Match(placeholder, label, true, parameter);
-  };
-
-  /**
-   *
-   * @param placeholder
-   * @param label
-   * @param parameter
-   * @returns {Builder}
-   * @constructor
-   */
-  this.toNode = function(placeholder, label, parameter) {
-    "use strict";
-
-    queries.push(this.getNodeQuery(placeholder, label, parameter));
-    QueryPlaceholders.push(placeholder);
-    return this;
+    return this.Match(placeholder, label, parameter, true);
   };
 
   /**
@@ -153,8 +132,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Related = function(placeholders, relationPlaceholder, label, parameter) {
-    "use strict";
-
     placeholders = (Array.isArray(placeholders) && placeholders.length > 0) ? placeholders : [];
     parameter = parameter || {};
     relationPlaceholder = relationPlaceholder || '';
@@ -194,8 +171,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.relate = function(relationPlaceholder, label, parameter) {
-    "use strict";
-
     relationPlaceholder = relationPlaceholder || 'ar';
     label = label || '';
 
@@ -213,6 +188,8 @@ var Builder = function() {
     query += ']-';
 
     queries.push(query);
+    QueryPlaceholders.push(relationPlaceholder);
+
     return me;
   };
 
@@ -223,19 +200,27 @@ var Builder = function() {
    * @param parameter
    * @returns {Builder}
    */
-  this.Merge = function(placeholder, label, parameter) {
-    "use strict";
-
-    if (_.isNull(placeholder)) {
-      placeholder = 't';
-    }
-
-    var query = ' MERGE ';
-    query += this.getNodeQuery(placeholder, label, parameter);
-
-    queries.push(query);
+  this.toNode = function(placeholder, label, parameter) {
+    queries.push(this.getNodeQuery(placeholder, label, parameter, null));
     QueryPlaceholders.push(placeholder);
+    return this;
+  };
 
+  /**
+   *
+   * @param placeholder
+   * @param label
+   * @param unique
+   * @param parameter
+   * @returns {Builder}
+   */
+  this.Create = function(placeholder, label, unique, parameter) {
+    placeholder = placeholder || '';
+    label = label || '';
+    parameter = parameter || {};
+    if (unique === true) queries.push(this.getNodeQuery(placeholder, label, parameter, this.CREATE_UNIQUE));
+    else queries.push(this.getNodeQuery(placeholder, label, parameter, this.CREATE));
+    QueryPlaceholders.push(placeholder);
     return this;
   };
 
@@ -244,17 +229,65 @@ var Builder = function() {
    * @param placeholder
    * @param label
    * @param parameter
+   * @returns {Builder}
+   */
+  this.UniqueCreate = function(placeholder, label, parameter) {
+    return this.Create(placeholder, label, true, parameter);
+  };
+
+  /**
+   *
+   * @param placeholder
+   * @param label
+   * @param parameter
+   * @returns {Builder}
+   */
+  this.Merge = function(placeholder, label, parameter) {
+    if (_.isNull(placeholder)) placeholder = 't';
+    queries.push(this.getNodeQuery(placeholder, label, parameter, this.MERGE));
+    QueryPlaceholders.push(placeholder);
+    return this;
+  };
+
+  /**
+   *
+   * @param placeholder
+   * @param label
+   * @param parameter
+   * @param action
    * @returns {string}
    */
-  this.getNodeQuery = function(placeholder, label, parameter) {
-    "use strict";
-
+  this.getNodeQuery = function(placeholder, label, parameter, action) {
     placeholder = placeholder || null;
     parameter = parameter || {};
     label = label || '';
+    action = action || '';
 
     var me = this
-      , query = '';
+      , getAction = function(action) {
+          switch(action) {
+            case me.CREATE:
+              return ' CREATE ';
+              break;
+            case me.MATCH:
+              return ' MATCH ';
+              break;
+            case me.OPTIONAL_MATCH:
+              return ' OPTIONAL MATCH ';
+              break;
+            case me.MERGE:
+              return ' MERGE ';
+              break;
+            case me.CREATE_UNIQUE:
+              return ' CREATE UNIQUE ';
+              break;
+            default:
+              return '';
+              break;
+          }
+        }
+      , query = getAction(action);
+
 
     if (_.isNull(placeholder)) {
       placeholder = 'at';
@@ -274,10 +307,6 @@ var Builder = function() {
     return query;
   };
 
-//  var getRelationQuery = function() {
-//
-//  };
-
   /**
    *
    * @param nodes
@@ -287,8 +316,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.MergeRelationShip = function(nodes, placeholder, label, parameter) {
-    "use strict";
-
     nodes = nodes || [];
 
     if (!parameter && typeof label !== 'string') {
@@ -330,8 +357,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.onCreate = function(command) {
-    "use strict";
-
     command = command || null;
     var string = '';
 
@@ -350,8 +375,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.onMatch = function(command) {
-    "use strict";
-
     command = command || null;
     var string = '';
 
@@ -370,8 +393,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Delete = function(placeholder) {
-    "use strict";
-
     placeholder = placeholder || null;
 
     if (!_.isNull(placeholder)) {
@@ -396,8 +417,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.With = function(placeholders) {
-    "use strict";
-
     if (Array.isArray(placeholders) && placeholders.length !== 0) {
       var string = ' WITH ' + placeholders.join(', ');
       queries.push(string);
@@ -408,18 +427,16 @@ var Builder = function() {
 
   /**
    *
-   * @param string
+   * @param condition
    * @param parameter
    * @returns {Builder}
    */
-  this.Where = function(string, parameter) {
-    "use strict";
-
-    string = string || null;
+  this.Where = function(condition, parameter) {
+    condition = condition || null;
     parameter = parameter || null;
 
-    if (!_.isNull(string) && typeof string === 'string')
-      queries.push(' WHERE ' + string);
+    if (!_.isNull(condition) && typeof condition === 'string')
+      queries.push(' WHERE ' + condition);
 
     if (!_.isNull(parameter))
       parameters = _.extend(parameters, parameter);
@@ -434,8 +451,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Set = function(placeholder, parameter) {
-    "use strict";
-
     if (placeholder && placeholder !== '') {
       var me = this
         , string = ' SET ' + me.prepareParameter(placeholder + '.', parameter);
@@ -453,8 +468,6 @@ var Builder = function() {
    * @returns {Builder}
    */
 //  this.ForeachArray = function(list, query) {
-//    "use strict";
-//
 //    list = list || null;
 //    query = query || null;
 //
@@ -474,8 +487,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.ForeachCondition = function(condition, query) {
-    "use strict";
-
     condition = condition || null;
     query = query || null;
 
@@ -496,8 +507,6 @@ var Builder = function() {
      * @constructor
      */
 //  this.AggregateReadOnly = function(placeholder, reader, aggregateFunc) {
-//    "use strict";
-//
 //    if (typeof placeholder === 'string') {
 //      placeholder = [placeholder];
 //    }
@@ -544,8 +553,6 @@ var Builder = function() {
    * @constructor
    */
 //  this.AggregateReadWrite = function(placeholder, readWriter, aggregateFunc) {
-//    "use strict";
-//
 //      if (typeof placeholder === 'string') {
 //          placeholder = [placeholder];
 //      }
@@ -595,8 +602,6 @@ var Builder = function() {
    * @constructor
    */
 //  this.AggregateReturn = function(placeholder, aggregateFunc) {
-//    "use strict";
-//
 //      if (typeof placeholder === 'string') {
 //          placeholder = [placeholder];
 //      }
@@ -620,8 +625,6 @@ var Builder = function() {
    * @returns {Builder}
    */
 //  this.createUniqueId = function(idName, additionalPlaceholders) {
-//    "use strict";
-//
 //    if (!Array.isArray(additionalPlaceholders) || additionalPlaceholders.length == 0)
 //      additionalPlaceholders = [idName];
 //    else
@@ -637,8 +640,6 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.reset = function() {
-    "use strict";
-
     QueryPlaceholders = [];
     queries = [];
     uniqueIds.length = 0;
@@ -653,8 +654,6 @@ var Builder = function() {
    * @returns {string}
    */
   this.prepareParameter = function(separator, parameter) {
-    "use strict";
-
     if (!separator) {
       parameter = separator;
       separator = ':';
@@ -710,8 +709,6 @@ var Builder = function() {
      * @returns {boolean}
      */
 //  var isReader = function(reader) {
-//    "use strict";
-//
 //      reader = reader || 0;
 //      if (typeof parseInt(reader) !== 'number')
 //        return false;
@@ -734,8 +731,6 @@ var Builder = function() {
      * @returns {boolean}
      */
 //  var isReadWriter = function(readWriter) {
-//    "use strict";
-//
 //    readWriter = readWriter || 0;
 //    if (typeof parseInt(readWriter) !== 'number') {
 //      return false;
@@ -760,8 +755,6 @@ var Builder = function() {
      * @returns {boolean}
      */
 //  var isAggregateFunc = function (func) {
-//    "use strict";
-//
 //    if (isNAN(parseInt(func)))
 //      return false;
 //
@@ -788,9 +781,6 @@ var Builder = function() {
    * @returns {string}
    */
 //  var glueForAggregation = function(func, placeholder) {
-//    "use strict";
-//
-//        "use strict";
 //    var me = this;
 //      if (isAggregateFunc(func)) {
 //        switch(func) {
@@ -830,8 +820,6 @@ var Builder = function() {
  * @returns {Builder}
  */
 Builder.singleton = function() {
-  "use strict";
-
   if (_.isNull(_instance) === true) {
     _instance = new Builder();
   }

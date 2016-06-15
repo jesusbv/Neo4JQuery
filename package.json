@@ -4,12 +4,21 @@
   "description": "Module that handles neo4j database cypher syntax as method calls.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": [
+      "TestCreate",
+      "TestMatch"
+    ]
   },
   "dependencies": {
+    "seraph": "*",
+    "neo4j-driver": "*",
     "underscore": "1.6.0",
-    "async": "0.9.0",
-    "node-linkedlist": "*"
+    "async": "*",
+    "node-linkedlist": "*",
+    "ring": "*"
+  },
+  "devDependencies": {
+    "should": "*"
   },
   "repository": {
     "type": "git",
