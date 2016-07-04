@@ -171,9 +171,15 @@ BoltDriver.prototype.reconnect = function(parameter) {
  * @returns {BoltDriver}
  */
 BoltDriver.prototype.close = function() {
+  if (this._transaction) this._transaction.close();
   this._transaction = null;
+
+  if (this._session) this._session.close();
   this._session = null;
+
+  if (this._connection) this._connection.close();
   this._connection = null;
+
   return this;
 };
 

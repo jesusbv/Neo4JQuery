@@ -1,20 +1,22 @@
 <h1>Neo4jQuery</h1>
-
 Tool that handles cypher syntax as method calls.
 
 <h2>What is Neo4jQuery?</h2>
 
-<i>Neo4JQuery</i> is an implementation made to to use the query language <i>Cypher</i> of the graph database <i>Neo4J</i> only.
+<i>Neo4JQuery</i> is an implementation made to use the query language <i>Cypher</i> of the graph database <i>Neo4J</i>.
 
 <h2>Why Neo4jQuery</h2>
 
 The library provides the strength of <i>Cypher</i> to use batch functionality like multiple matches and merges and creating relationships
 in one query.
 
-It is also made to be more like programming a <i>Cypher</i> query than have lots of <i>Cypher</i> strings in the code which could be confusing.
+It is also made to be more like programming a <i>Cypher</i> query than have many <i>Cypher</i> strings in the code which could be confusing.
 
-Therefor you have lots of methods available in the query builder object which can be chained and is looking like a real <i>Cypher</i> command
-in the end.
+Therefor you have lots of methods available in the query builder which can be chained and is looking like a real <i>Cypher</i> command in the end.
+
+The query builder methods are named like the <i>Cypher</i> commands, e.g. "<i>Merge</i>", "<i>Match</i>",  "<i>Set</i>" or "<i>onCreate</i>".
+
+<p style="font-size: 0.9em; color: red">!Important: Version 1.0.3 is not supported anymore. Instead use version 1.2.0 and later!</p>
 
 <h2>How to use</h2>
 
@@ -23,72 +25,223 @@ in the end.
 - Add the <i>neo4jquery</i> module to the dependencies list in your project <i>package.json</i> file.
 - Execute `npm install` to pull the module and install it in your project.
 
-<h3>Install globally</h3>
+<h3>Install globally to use in different projects</h3>
 
 - If you need it globally use __npm -g install neo4jquery__.
 
-<h3>... and then</h3>
-
-- Also install a driver module like `seraph` via __npm install seraph__ (The driver needs a method query with parameter 'query', 'parameter' and 'callback').
-- Import both, <i>seraph</i> and <i>Neo4JQuery</i>, with <i>require</i> and connect to your <i>Neo4J</i> graph database.
-
-<h3>Quick example to get connection</h3>
-```javascript
-var seraph = require("seraph")({
-      server: "http://127.0.0.1:7474",
-      endpoint: "/data/graph.db",
-      user: "testuser",
-      pass: "testpass"
+<h3>Quick example for usage with Bolt</h3>
+```javascript  
+  var db = require('neo4jquery').singleton({
+        server: "bolt://localhost",
+        user: "boltTest",
+        password: "changePassword",
+        port: 7475,
+        type: Driver.DRIVER_TYPE_BOLT,
+        connection: 'default'
       })
-  , graph = require("neo4jquery").setConnection(seraph);
-
+      , Builder = db.Builder;
+  
+  Builder
+    .reset()
+    .Match(...);
+    
+  ... 
+  
 ```
 
+Alternatively you can use it like this:
+
+```javascript
+  var db = require('neo4jquery').singleton()
+    , Builder = db.Builder;
+    
+  db.connect({
+    server: "bolt://localhost",
+    user: "boltTest",
+    password: "changePassword",
+    port: 7475,
+    type: Driver.DRIVER_TYPE_BOLT,
+    connection: 'default'
+  });
+      
+  Builder
+    .reset()
+    .Match(...);
+    
+  ...
+  
+```
+
+
 <h2>Documentation</h2>
+<h3>Driver</h3>
+
+<h4>Bolt</h4>
+Bolt is a binary connection protocol. For more infos check the page at the <a href="https://neo4j.com/developer/javascript/#_neo4j_for_javascript_developers">Neo Technology, Inc. </a>homepage.
+This official driver is used internally to connect your application with your `Neo4J` database.
+
+<h4>Return values</h4>
+```javascript  
+  var db = require('neo4jquery').singleton({
+        server: "bolt://localhost",
+        user: "boltTest",
+        password: "changePassword",
+        port: 7475,
+        type: Driver.DRIVER_TYPE_BOLT,
+        connection: 'default'
+      })
+      , Builder = db.Builder;
+  
+  Builder
+    .reset()
+    .Match(...);
+    
+  db.execute({
+    builder: Builder,
+    connection: 'readServer',
+    cached: false,
+    labelMap: {'u1': 'User'},
+    closeConnection: false // Default: false. Otherwise the bolt connection is closed internally. 
+    success: function(data) {
+      /**
+       * TODO: HERE THE STRUCTURE OF THE RESULT SET DEPENDING ON THE USED DRIVER!!!
+       *
+       */
+       db.close();
+    },
+    error: function(err) {db.close();}
+  });
+  
+  
+```
+
+<h4>REST</h4>
+To connect your application with your `Neo4J` database via REST `neo4jquery` uses the `<MODULE_NAME>` module. It is a lightweight and fast driver offering full support to the needs of `neo4jquery`.
+
+<h4>Return values</h4>
+```javascript
+var db = require('neo4jquery').singleton({
+    server: "https://localhost",
+    endpoint: "/db/data/",
+    user: "neo4j",
+    password: "neo4j",
+    port: 7474,
+    type: Driver.DRIVER_TYPE_REST,
+    connection: 'readServer'
+  });
+  , Builder = db.Builder;
+  
+  Builder
+    .reset()
+    .Match('u1', 'User', {username: 'test'}, false)
+    .Set('u1', {processed: true});
+    
+  db.execute({
+    builder: Builder,
+    connection: 'readServer',
+    cached: false,
+    labelMap: {'u1': 'User'},
+    success: function(data) {
+      /**
+       * TODO: HERE THE STRUCTURE OF THE RESULT SET DEPENDING ON THE USED DRIVER!!!
+       *
+       */
+    },
+    error: function(err) {...}
+  });
+```
 
 <h3>Graph</h3>
-<a name="setConnection" />
-<h4>setConnection(connection)</h4>
 
-Sets a driver which is connected to a <i>Neo4J</i> database.
-The only requirement is that the driver implements a method called 'query'.
+<h4>connect(connection)</h4>
+Connects to the configured database. The standard driver is based on REST for legacy purposes. Therefor `neo4jquery` uses the module `<MODULE_NAME>`.
+As you can see in the example you also can use a bolt driven connection. Here `neo4jquery` use the official module `neo4j-driver` from `<COMPANY_NAME_OF_NEO4J>`.
+If you need more than one connections to one or more databases you only have to define the `connection name` as it is shown in the example.
 
 <strong>Arguments</strong>
 
-* `connection` (object) - A driver with a connection to a Neo4J database
+* `connection` (object) - Connection configuration
+  * `server` (string) - The server URL (Pay attention to the protocols for REST and Bolt!)
+  * `port` (number) - The port the server is listening on
+  * `user` (string) - The user name for server authentication.
+  * `password` (string) - The password for server authentication
+  * `type` (number) - The driver type. Default: `DRIVER_TYPE_REST`. For Bolt usage use `DRIVER_TYPE_BOLT`
+  * `connection` (string) - The connection name for different connection to one or more database servers.
+
+  
+<strong>Example</strong>
+
+See quick example...
+
+<a name="close"/>
+<h4>close(connection)</h4>
+
+Closes the connection to a database of the specified driver. To close a connection use also can use the parameter `closeConnection` in the options passed-in to the method <a href="#execute">execute</a>.
+
+<strong>Arguments</strong>
+
+* `connection` (string) - The connection name.
 
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>);
+var db = require('neo4jquery').singleton({
+        server: "bolt://localhost",
+        user: "boltTest",
+        password: "changePassword",
+        port: 7475,
+        type: Driver.DRIVER_TYPE_BOLT,
+        connection: 'readServer'
+      })
+      , Builder = db.Builder;
+  
+  Builder
+    .reset()
+    .Match(...);
+    
+  db.execute(...);
+  
+  ...
+  
+  db.close('readServer');
 ```
-
 <a name="query" />
-<h4>Query(query, parameters, callback)</h4>
 
-Executes a passed-in query directly. Using parameters for parameterized cypher queries.
+<h4>query(query, parameters [, connection], callback)</h4>
+
+Executes a passed-in query directly. It is also using parameters for parameterized cypher queries. 
+If you are using the `Bolt` driver the connection is closed automatically before executing the callback function.
 
 <strong>Arguments</strong>
 
 * `query` (string) - The cypher query to be executed.
 * `parameters` (object) - Parameters for parameterized queries.
+* `connection` (string) - (Optional) The connection name you wants to use. Standard name is `default`.
 * `callback` (function) - Callback function with parameters 'error' and 'array list'.
 
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require('neo4jquery').singleton()
+  , db.connect({
+      server: "bolt://localhost",
+      user: "boltTest",
+      password: "changePassword",
+      port: 7475,
+      type: Driver.DRIVER_TYPE_BOLT,
+      connection: 'readServer'
+    });
   , query = "MATCH (n:Node {field1: {v1}})-[r1:IS_LABEL]-(n2:Node2 {field2: {v2}}) RETURN n"
   , parameters = {v1: "value1", v2: "value2"}
 
-  graph.Query(query, parameters, function(err, list) {
-      if (err || void 0 === list) {
-        callback(err, void 0);
-      } else {
-        // some stuff here with list
-        var user = list[0];
-      }
-    });
+  db.query(query, parameters, 'readServer', function(err, list) {
+    if (err || void 0 === list) {
+      callback(err, void 0);
+    } else {
+      // some stuff here with list
+      var user = list[0];
+    }
+  });
 ```
 
 <a name="call" />
@@ -154,41 +307,29 @@ var graph = require("neo4jquery").setConnection(<driver object>)
   ...
   ...
 ```
+<a name="begintransaction" />
+<h4>beginTransaction(connection)</h4>
 
-<a name="run" />
-<h4>run(builder[, cached], callback)</h4>
-
-Sets conditions to find specific nodes or relationships.
+Starts a transaction. Only available when using the `Bolt` driver!
 
 <strong>Arguments</strong>
 
-* `builder` (Builder) - Cypher query builder object.
-* `cached` (bool) - Flag to use the last cypher query.
-* `callback` (function) - The callback function. Parameter of this function are first an error object and second an array as resultset.
+* connection (string) - The connection name.
 
 <strong>Example</strong>
 
-```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
-  , builder = graph.Builder();
 
-  builder
-    .reset()
-    .Match('n', 'User')
-    .Where("n.username={username} and n.password={password}", {username: "testuser", password: "testpass"})
+<a name="commit" />
+<h4>commit(callback)</h4>
 
-  graph.run(builder, false, function(err, list) {
-    if (err || void 0 === list) {
-      callback(err, void 0);
-    } else {
-      /**
-       * list is here [{u: {username:..., password:..., fieldN:...}}]
-       */
-      // some stuff here with list
-      var user = list[0];
-    }
-  });
-```
+Finish the transaction and executes the callback function. On `commit` the connection to the server is automatically closed.
+
+<strong>Arguments</strong>
+
+* callback (function) - The callback function called after successful transaction commit.
+
+<strong>Example</strong>
+
 
 <a name="execute" />
 <h4>execute(options)</h4>
@@ -229,12 +370,12 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     });
 ```
 
-<h3>Cypher Builder
+<h3>Cypher Builder</h3>
 
 <a name="reset" />
 <h4>reset()</h4>
 
-Resets the builder object (inclusive cached query). Should be used to be as first method in the chain when you get the builder object.
+Resets the builder object (inclusive cached query). Should be used to be as first method in the chain when you use the builder object.
 
 <strong>Arguments</strong>
 
@@ -361,6 +502,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <a name="mergerelationship" />
 <h4>MergeRelationShip(nodes, placeholder, label, parameters)</h4>
+
 Try connect two nodes with a relationship with given information.
 
 
@@ -649,6 +791,105 @@ var graph = require("neo4jquery").setConnection(<driver object>)
   });
 ```
 
+<a name="wherein"/>
+<h4>WhereIn(values)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="orderby"/>
+<h4>OrderBy(orders)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="skip"/>
+<h4>Skip(number)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="limit"/>
+<h4>Limit(limit)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="remove"/>
+<h4>Remove</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="literalmap"/>
+<h4>LiteralMap(map)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+
+<a name="foreacharray"/>
+<h4>ForeachArray(list, query)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
 <a name="foreachcondition" />
 <h4>ForeachCondition(condition, query)</h4>
 
@@ -688,5 +929,132 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     },
     error: function(err) {...}
   });
+```
+
+
+<a name="getnodequery"/>
+<h4>getNodeQuery(placeholder, label, parameter, action)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+
+<a name="batchcreate"/>
+<h4>BatchCreate(placeholderPrefixes, labels, unique, parameters)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="tonode"/>
+<h4>toNode(placeholder, label, parameter)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="relate"/>
+<h4>relate(relationPlaceholder, label, parameter)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="related"/>
+<h4>Related(placeholders, relationPlaceholders, label, parameter)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="start"/>
+<h4>Start(placeholder, label, parameter)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="getquery"/>
+<h4>getQuery(labelMap)</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="getparameters"/>
+<h4>getParameters()</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
+```
+
+
+<a name="hasqueries"/>
+<h4>hasQueries</h4>
+
+
+<strong>Arguments</strong>
+
+* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+<strong>Example</strong>
+```javascript
+
 ```
 

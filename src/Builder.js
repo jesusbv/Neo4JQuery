@@ -92,7 +92,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param placeholder
    * @param label
    * @param optional
@@ -112,7 +112,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param placeholder
    * @param label
    * @param parameter
@@ -226,6 +226,20 @@ var Builder = function() {
 
   /**
    *
+   * @param placeholderPrefix
+   * @param label
+   * @param unique
+   * @param parameters
+   * @constructor
+   */
+  this.BatchCreate = function(placeholderPrefixs, labels, unique, parameters) {
+    /**
+     * CREATE (u1:User {...}), (u2:User {...}), ..., (time100:Timestamp {...}));
+     */
+  };
+
+  /**
+   *
    * @param placeholder
    * @param label
    * @param parameter
@@ -236,7 +250,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param placeholder
    * @param label
    * @param parameter
@@ -308,7 +322,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param nodes
    * @param placeholder
    * @param label
@@ -352,7 +366,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param command
    * @returns {Builder}
    */
@@ -370,7 +384,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param command
    * @returns {Builder}
    */
@@ -388,7 +402,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param placeholder
    * @returns {Builder}
    */
@@ -412,7 +426,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param placeholders
    * @returns {Builder}
    */
@@ -426,7 +440,7 @@ var Builder = function() {
   };
 
   /**
-   *
+   * X
    * @param condition
    * @param parameter
    * @returns {Builder}
@@ -444,8 +458,12 @@ var Builder = function() {
     return this;
   };
 
+  this.WhereIn = function(values) {
+    return this;
+  };
+
   /**
-   *
+   * X
    * @param placeholder
    * @param parameter
    * @returns {Builder}
@@ -461,13 +479,46 @@ var Builder = function() {
     return this;
   };
 
+  this.OrderBy = function(orders) {
+    return this;
+  };
+
+  this.Skip = function(number) {
+    return this;
+  };
+
+  this.Limit = function(limit) {
+    return this;
+  };
+
   /**
-   *
+   * Removes the label from the given placeholder
+   * @param placeholder
+   * @param label
+   * @returns {Builder}
+   * @constructor
+   */
+  this.Remove = function(placeholder, label) {
+    return this;
+  };
+
+  /**
+   * Use the map to be returned instead of the placeholder or the aliases map.
+   * @param map
+   * @returns {Builder}
+   * @constructor
+   */
+  this.LiteralMap = function(map) {
+    return this;
+  };
+  /**
+   * X
    * @param list
    * @param query
    * @returns {Builder}
    */
-//  this.ForeachArray = function(list, query) {
+
+  this.ForeachArray = function(list, query) {
 //    list = list || null;
 //    query = query || null;
 //
@@ -477,11 +528,11 @@ var Builder = function() {
 //      parameters = {items: list};
 //    }
 //
-//    return this;
-//  };
+    return this;
+  };
 
   /**
-   *
+   * X
    * @param condition
    * @param query
    * @returns {Builder}
@@ -636,7 +687,7 @@ var Builder = function() {
 //  };
 
   /**
-   *
+   * X
    * @returns {Builder}
    */
   this.reset = function() {
@@ -667,8 +718,6 @@ var Builder = function() {
     }
 
     keys.forEach(function(key) {
-      "use strict";
-
       if (separator === ':') {
         // Parameter format for node creation
         if (isNaN(parameter[key])) {

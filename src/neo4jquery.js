@@ -31,11 +31,8 @@ var Neo4JQuery = function() {
    * @param callback {function}
    */
   this.query = function(query, parameters, connection, callback) {
-    "use strict";
-
     query = query || null;
     parameters = parameters || {};
-
     if (typeof connection === 'function') {
       callback = connection;
       connection = 'default';
@@ -45,7 +42,10 @@ var Neo4JQuery = function() {
     var session = _connections.searchBy('name', connection).getDriver();
 
     if (query && typeof query === 'string') {
-      session.execute(query, parameters, callback);
+      session.execute(query, parameters, function(err, result) {
+        if (session.getType() === Driver.DRIVER_TYPE_BOLT) session.close();
+        callback(err, result);
+      });
     }
   };
 
@@ -187,16 +187,16 @@ var Neo4JQuery = function() {
    * @param options {object}
    */
   this.execute = function(options) {
-    "use strict";
-
     if (!options.success) options.success = function(result) {};
     if (!options.error) options.error = function(err) {console.log(err);};
     // Without a builder it makes no sense to query the database.
     if (!options.builder) options.error({message: 'No Cypher query builder found.', code: 1001}, null);
-    if(!options.connection) options.connection = 'default';
+
     // Default settings
     if (_.isUndefined(options.cached) || _.isNull(options.cached)) options.cached = false;
+    if(!options.connection) options.connection = 'default';
     if (!options.labelMap || _.isEmpty(options.labelMap)) options.labelMap = {};
+    if (!options.closeConnection) options.closeConnection = false;
 
     var me = this
       , query = "";
@@ -219,8 +219,6 @@ var Neo4JQuery = function() {
      * @todo Also check the connection type: Bolt has records and Rest API has normal objects!!
      */
     var buildAliases = function(labelMap, result, callback) {
-      "use strict";
-
       if (_.isEmpty(labelMap)) {
         callback(null, result);
       } else {
@@ -254,8 +252,6 @@ var Neo4JQuery = function() {
 
     // Query the database.
     me.query(query, options.builder.getParameters(), function(err, result) {
-      "use strict";
-
       query = null;
       options.builder.reset();
       if (err) {
@@ -272,6 +268,11 @@ var Neo4JQuery = function() {
     });
   };
 
+  /**
+   *
+   * @param configuration
+   * @returns {Neo4JQuery}
+   */
   this.connect = function(configuration) {
     configuration = configuration || null;
     _configuration = configuration;
@@ -295,6 +296,11 @@ var Neo4JQuery = function() {
     return this;
   };
 
+  /**
+   *
+   * @param connection
+   * @returns {Neo4JQuery}
+   */
   this.close = function(connection) {
     var session = _connections.searchBy('Name', connection).getDriver();
     switch(session.getType()) {
@@ -315,7 +321,6 @@ var Neo4JQuery = function() {
  * @Deprecated
  */
 Neo4JQuery.singleton = function() {
-  "use strict";
   if (_.isNull(_graphInstance)) {
     _graphInstance = new Neo4JQuery();
     _graphInstance.Builder = require('./Builder').singleton();
