@@ -4,10 +4,10 @@ var _ = require('underscore')
   , LinkedList = require('node-linkedlist')
   , async = require('async')
   , Builder = require('./Builder')
-  , _graphInstance = null
   , DriverNode = require('./Driver/DriverNode')
+  , Driver = require('./Driver/Driver')
   , _connections = LinkedList.Create(DriverNode)
-  , Driver = require('./Driver/Driver');
+  , _graphInstance = null;
 
 /**
  * @todo Change all operations on array into ops of linked list (is a bit faster and really fast with big amount of list items).
@@ -21,6 +21,63 @@ var Neo4JQuery = function() {
    */
   this.Builder = null;
 
+  /**
+   * Removes all connections from internal driver list.
+   *
+   * @returns {Neo4JQuery}
+   */
+  this.flushList = function() {
+    _connections.clean();
+    return this;
+  };
+  /**
+   *
+   * @param configuration
+   * @returns {Neo4JQuery}
+   */
+  this.connect = function(configuration) {
+    configuration = configuration || null;
+    _configuration = configuration;
+
+    var node = DriverNode.Create()
+      , driver = null;
+
+    if (_configuration !== null && _configuration.type !== null) {
+      switch(_configuration.type) {
+        case Driver.DRIVER_TYPE_BOLT:
+          // Create new connection
+          driver = require('./Driver/Bolt').instance();
+          break;
+        case Driver.DRIVER_TYPE_HTTP:
+          driver = require('./Driver/Rest').instance();
+          break;
+      }
+
+      driver.connect(_configuration);
+      node.setDriver(driver);
+      node.setName( (_configuration.connection) ? _configuration.connection : 'default' );
+      // Add new connection
+      _connections.add(node);
+    }
+
+    return this;
+  };
+
+  /**
+   *
+   * @param connection
+   * @returns {Neo4JQuery}
+   */
+  this.close = function(connection) {
+    var session = _connections.searchBy('Name', connection).getDriver();
+    switch(session.getType()) {
+      case Driver.DRIVER_TYPE_BOLT:
+      case Driver.DRIVER_TYPE_HTTP:
+        session.close();
+        break;
+    }
+    return this;
+  };
 
   /**
    * Query the database directly with a Cypher query.
@@ -33,20 +90,32 @@ var Neo4JQuery = function() {
   this.query = function(query, parameters, connection, callback) {
     query = query || null;
     parameters = parameters || {};
+
     if (typeof connection === 'function') {
       callback = connection;
       connection = 'default';
     } else if (typeof connection !== 'string')
       connection = 'default';
 
-    var session = _connections.searchBy('name', connection).getDriver();
+    var session = _connections.searchBy('name', connection);
 
-    if (query && typeof query === 'string') {
-      session.execute(query, parameters, function(err, result) {
-        if (session.getType() === Driver.DRIVER_TYPE_BOLT) session.close();
-        callback(err, result);
-      });
+    if (!session || !session.getDriver ) {
+      callback({error: {message: 'No active connection with name "' + connection + '" found.', code: 0}}, null);
     }
+    else{
+      session = session.getDriver();
+      if (query && typeof query === 'string') {
+        session.execute(query, parameters, function(err, result) {
+          if (session.getType() === Driver.DRIVER_TYPE_BOLT)
+            session.close();
+
+          callback(err, result);
+        });
+      } else {
+        callback({error: {message: 'No query to execute given.', code: 0}}, null);
+      }
+    }
+
   };
 
   /**
@@ -91,7 +160,7 @@ var Neo4JQuery = function() {
         break;
       case Driver.DRIVER_TYPE_HTTP:
       default:
-        callback({message: 'This type does not support transactions: Neo4J Rest API'}, null);
+        callback({message: 'This type does not support transactions: Neo4J Rest API', code: 0}, null);
         break;
     }
   };
@@ -145,43 +214,6 @@ var Neo4JQuery = function() {
   //};
 
   /**
-   * Execute the query/ies build with the Cypher builder object.
-   * This way is not preferred. Use 'execute' instead with 'options' object.
-   *
-   * @param builder {Builder}
-   * @param cached {boolean}
-   * @param callback {function}
-   */
-  //this.run = function(builder, cached, callback) {
-  //  "use strict";
-  //
-  //  if (typeof cached === 'function') {
-  //    callback = cached;
-  //    cached = false;
-  //  }
-  //
-  //  var me = this
-  //    , query = "";
-  //
-  //  if (cached === false) {
-  //    // Concat all queries.
-  //    query = builder.getQuery();
-  //    _cachedQuery = query;
-  //  } else {
-  //    query = _cachedQuery;
-  //  }
-  //
-  //  // Query the database.
-  //  me.Query(query, builder.getParameters(), function(err, result) {
-  //    "use strict";
-  //
-  //    query = null;
-  //    builder.reset();
-  //    callback(err, result);
-  //  });
-  //};
-
-  /**
    * Execute the query/ies build with the Cypher builder.
    *
    * @param options {object}
@@ -197,6 +229,7 @@ var Neo4JQuery = function() {
     if(!options.connection) options.connection = 'default';
     if (!options.labelMap || _.isEmpty(options.labelMap)) options.labelMap = {};
     if (!options.closeConnection) options.closeConnection = false;
+
 
     var me = this
       , query = "";
@@ -251,7 +284,7 @@ var Neo4JQuery = function() {
     };
 
     // Query the database.
-    me.query(query, options.builder.getParameters(), function(err, result) {
+    me.query(query, options.builder.getParameters(), options.connection, function(err, result) {
       query = null;
       options.builder.reset();
       if (err) {
@@ -268,49 +301,6 @@ var Neo4JQuery = function() {
     });
   };
 
-  /**
-   *
-   * @param configuration
-   * @returns {Neo4JQuery}
-   */
-  this.connect = function(configuration) {
-    configuration = configuration || null;
-    _configuration = configuration;
-
-    var node = DriverNode.Create();
-    
-    if (_configuration !== null && _configuration.type !== null) {
-      switch(configuration.type) {
-        case Driver.DRIVER_TYPE_BOLT:
-        // Create new connection
-          var connection = require('./Driver/Bolt').instance();
-          connection.connect(_configuration);
-          node.setDriver(connection);
-          node.setName( ( (configuration.connection) ? configuration.connection : 'default' )) ;
-          // Add new connection
-          _connections.add(node);
-          break;
-      }
-    }
-
-    return this;
-  };
-
-  /**
-   *
-   * @param connection
-   * @returns {Neo4JQuery}
-   */
-  this.close = function(connection) {
-    var session = _connections.searchBy('Name', connection).getDriver();
-    switch(session.getType()) {
-      case Driver.DRIVER_TYPE_BOLT:
-      case Driver.DRIVER_TYPE_HTTP:
-        session.close();
-        break;
-    }
-    return this;
-  };
 };
 
 /**

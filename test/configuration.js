@@ -1,13 +1,19 @@
 var Driver = require('../src/Driver/Driver');
 
 module.exports = {
-  server: "bolt://192.168.2.101",
-//  server: "bolt://192.168.101.87",
-  endpoint: "/db/data/",
-//  user: "neo4j",
-  user: "root",
-//  password: "macmon",
-  password: "FamilyTreeGraph",
-  port: 7475,
+  bolt: {
+    server: "192.168.2.101",
+    user: "neo4j",
+    password: "neo4j",
+    port: 7475
+  },
+  rest: {
+    server: "192.168.2.101",
+    protocol: 'http:',
+    endpoint: "/db/data/",
+//    user: "neo4j",
+//    password: "neo4j",
+    port: 7474
+  },
   type: Driver.DRIVER_TYPE_BOLT
 };

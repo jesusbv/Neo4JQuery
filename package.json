@@ -10,9 +10,6 @@
     ]
   },
   "dependencies": {
-    "isomorphic-cypher":"*",
-    "simple-neo4j": "*",
-    "neo4j-query": "*",
     "neo4j-ha-bolt-driver": "*",
     "neo4j-driver": "*",
     "neo4j-supervisor": "*",

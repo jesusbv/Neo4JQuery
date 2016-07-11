@@ -1,4 +1,3 @@
-var configuration = require('./configuration')
-  , neo4jquery = require('../src/neo4jquery').singleton(configuration);
+var neo4jquery = require('../src/neo4jquery').singleton();
 
 module.exports = neo4jquery;

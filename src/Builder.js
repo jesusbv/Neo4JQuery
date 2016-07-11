@@ -8,10 +8,11 @@ var _instance = null
  * @todo Implement options objects as method signature to pass in parameter into builder methods.
  */
 var Builder = function() {
-  var queries = []
-    , QueryPlaceholders = []
-    , uniqueIds = []
-    , parameters = {}
+  var _start = ''
+    , _queries = []
+    , _queryPlaceholders = []
+    , _uniqueIds = []
+    , _parameters = {}
     , _counter = 0;
 
   this.MATCH = 1;
@@ -33,22 +34,23 @@ var Builder = function() {
 
   /**
    *
+   * @param labelMap
    * @returns {string}
    */
   this.getQuery = function(labelMap) {
     labelMap = (labelMap && !_.isEmpty(labelMap)) ? _.keys(labelMap) : [];
 
     var me = this
-      , query = "";
+      , query = (_start != '') ? _start : '';
 
     if (me.hasQueries()) {
       // Concat all queries.
-      query = queries.join('');
+      query += _queries.join('');
 
       // Get the placeholders for return them...
-      if (labelMap.length == 0 && Array.isArray(QueryPlaceholders) && QueryPlaceholders.length > 0) {
+      if (labelMap.length == 0 && Array.isArray(_queryPlaceholders) && _queryPlaceholders.length > 0) {
         // Return placeholders.
-        query += ' RETURN ' + QueryPlaceholders.join(', ');
+        query += ' RETURN ' + _queryPlaceholders.join(', ');
       } else {
         // ... or have given placeholder to return.
         labelMap = _.unique(labelMap);
@@ -64,7 +66,7 @@ var Builder = function() {
    * @returns {object}
    */
   this.getParameters = function() {
-    return parameters;
+    return _parameters;
   };
 
   /**
@@ -72,7 +74,7 @@ var Builder = function() {
    * @returns {boolean}
    */
   this.hasQueries = function() {
-    return (queries.length > 0);
+    return (_queries.length > 0);
   };
 
   /**
@@ -83,12 +85,12 @@ var Builder = function() {
    * @constructor
    */
   this.Start = function(placeholder, label, parameter) {
-    placeholder = placeholder || ++_counter;
+    placeholder = placeholder || 'ph';
     label = label || '';
     parameter = parameter || {};
 
-    queries.push(this.getNodeQuery(placeholder, label, parameter, this.START));
-    QueryPlaceholders.push(placeholder);
+    _start = this.getNodeQuery(placeholder, label, parameter, this.START);
+    _queryPlaceholders.push(placeholder);
   };
 
   /**
@@ -96,18 +98,18 @@ var Builder = function() {
    * @param placeholder
    * @param label
    * @param optional
-   * @param parameter
+   * @param parameters
    * @returns {Builder}
    */
-  this.Match = function(placeholder, label, parameter, optional) {
+  this.Match = function(placeholder, label, parameters, optional) {
     optional = (optional === true);
 
     if (optional === true)
-      queries.push(this.getNodeQuery(placeholder, label, parameter, this.OPTIONAL_MATCH));
+      _queries.push(this.getNodeQuery(placeholder, label, parameters, this.OPTIONAL_MATCH));
     else
-      queries.push(this.getNodeQuery(placeholder, label, parameter, this.MATCH));
+      _queries.push(this.getNodeQuery(placeholder, label, parameters, this.MATCH));
 
-    QueryPlaceholders.push(placeholder);
+    _queryPlaceholders.push(placeholder);
     return this;
   };
 
@@ -157,7 +159,7 @@ var Builder = function() {
 
       query += '(' + placeholders[1] + ') ';
 
-      queries.push(query);
+      _queries.push(query);
 
       return me;
     }
@@ -187,8 +189,8 @@ var Builder = function() {
 
     query += ']-';
 
-    queries.push(query);
-    QueryPlaceholders.push(relationPlaceholder);
+    _queries.push(query);
+    _queryPlaceholders.push(relationPlaceholder);
 
     return me;
   };
@@ -201,8 +203,8 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.toNode = function(placeholder, label, parameter) {
-    queries.push(this.getNodeQuery(placeholder, label, parameter, null));
-    QueryPlaceholders.push(placeholder);
+    _queries.push(this.getNodeQuery(placeholder, label, parameter, null));
+    _queryPlaceholders.push(placeholder);
     return this;
   };
 
@@ -218,21 +220,20 @@ var Builder = function() {
     placeholder = placeholder || '';
     label = label || '';
     parameter = parameter || {};
-    if (unique === true) queries.push(this.getNodeQuery(placeholder, label, parameter, this.CREATE_UNIQUE));
-    else queries.push(this.getNodeQuery(placeholder, label, parameter, this.CREATE));
-    QueryPlaceholders.push(placeholder);
+    if (unique === true) _queries.push(this.getNodeQuery(placeholder, label, parameter, this.CREATE_UNIQUE));
+    else _queries.push(this.getNodeQuery(placeholder, label, parameter, this.CREATE));
+    _queryPlaceholders.push(placeholder);
     return this;
   };
 
   /**
    *
-   * @param placeholderPrefix
-   * @param label
+   * @param placeholderPrefixes
+   * @param labels
    * @param unique
    * @param parameters
-   * @constructor
    */
-  this.BatchCreate = function(placeholderPrefixs, labels, unique, parameters) {
+  this.BatchCreate = function(placeholderPrefixes, labels, unique, parameters) {
     /**
      * CREATE (u1:User {...}), (u2:User {...}), ..., (time100:Timestamp {...}));
      */
@@ -258,8 +259,8 @@ var Builder = function() {
    */
   this.Merge = function(placeholder, label, parameter) {
     if (_.isNull(placeholder)) placeholder = 't';
-    queries.push(this.getNodeQuery(placeholder, label, parameter, this.MERGE));
-    QueryPlaceholders.push(placeholder);
+    _queries.push(this.getNodeQuery(placeholder, label, parameter, this.MERGE));
+    _queryPlaceholders.push(placeholder);
     return this;
   };
 
@@ -358,8 +359,8 @@ var Builder = function() {
 
       string += me.prepareParameter(':', parameter) + ']-(' + nodes[1] + ') ';
 
-      queries.push(string);
-      QueryPlaceholders.push(placeholder);
+      _queries.push(string);
+      _queryPlaceholders.push(placeholder);
 
       return this;
     }
@@ -378,7 +379,7 @@ var Builder = function() {
       string = ' ON CREATE ' + command;
 
     if (string !== '')
-      queries.push(string);
+      _queries.push(string);
 
     return this;
   };
@@ -396,7 +397,7 @@ var Builder = function() {
       string = ' ON MATCH ' + command;
 
     if (string !== '')
-      queries.push(string);
+      _queries.push(string);
 
     return this;
   };
@@ -418,7 +419,7 @@ var Builder = function() {
       }
 
       if (string !== '') {
-        queries.push(string);
+        _queries.push(string);
       }
     }
 
@@ -433,7 +434,7 @@ var Builder = function() {
   this.With = function(placeholders) {
     if (Array.isArray(placeholders) && placeholders.length !== 0) {
       var string = ' WITH ' + placeholders.join(', ');
-      queries.push(string);
+      _queries.push(string);
     }
 
     return this;
@@ -450,10 +451,10 @@ var Builder = function() {
     parameter = parameter || null;
 
     if (!_.isNull(condition) && typeof condition === 'string')
-      queries.push(' WHERE ' + condition);
+      _queries.push(' WHERE ' + condition);
 
     if (!_.isNull(parameter))
-      parameters = _.extend(parameters, parameter);
+      _parameters = _.extend(_parameters, parameter);
 
     return this;
   };
@@ -473,7 +474,7 @@ var Builder = function() {
       var me = this
         , string = ' SET ' + me.prepareParameter(placeholder + '.', parameter);
 
-      queries.push(string);
+      _queries.push(string);
     }
 
     return this;
@@ -543,7 +544,7 @@ var Builder = function() {
 
     if (!_.isNull(query) && typeof condition === 'string') {
       var string = ' FOREACH (' + condition + ' | \n' + query + ')';
-      queries.push(string);
+      _queries.push(string);
     }
 
     return this;
@@ -691,9 +692,9 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.reset = function() {
-    QueryPlaceholders = [];
-    queries = [];
-    uniqueIds.length = 0;
+    _queryPlaceholders = [];
+    _queries = [];
+    _uniqueIds.length = 0;
 
     return this;
   };
@@ -721,7 +722,7 @@ var Builder = function() {
       if (separator === ':') {
         // Parameter format for node creation
         if (isNaN(parameter[key])) {
-          if (uniqueIds.indexOf(parameter[key]) != -1) {
+          if (_uniqueIds.indexOf(parameter[key]) != -1) {
             string += key + separator + ' ' + parameter[key] + ', ';
           } else {
             string += key + separator + ' "' + parameter[key] + '", ';
@@ -732,7 +733,7 @@ var Builder = function() {
       } else if (separator.indexOf('.') != -1) {
 
         if (isNaN(parameter[key])) {
-          if (uniqueIds.indexOf(parameter[key]) != -1) {
+          if (_uniqueIds.indexOf(parameter[key]) != -1) {
             string += separator + key + '=' + parameter[key] + ', ';
           } else {
             string += separator + key + '="' + parameter[key] + '", ';

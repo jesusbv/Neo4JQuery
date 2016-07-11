@@ -12,7 +12,6 @@ var BoltDriver = function() {
   this._transaction = null;
   this._connection = null;
   this._parameter = null;
-  this._type = Driver.DRIVER_TYPE_BOLT;
   this._transactionStarted = false;
 };
 
@@ -21,8 +20,7 @@ var BoltDriver = function() {
  * @returns {number|*}
  */
 BoltDriver.prototype.getType = function() {
-  "use strict";
-  return this._type;
+  return Driver.DRIVER_TYPE_BOLT;
 };
 
 /**
@@ -42,11 +40,11 @@ BoltDriver.prototype.connect = function(parameter) {
   var me = this;
   me._parameter = (!_.isEmpty(parameter)) ? parameter : null;
 
-  if (me._parameter !== null) {
-    var url = me._parameter.server;
-    if (me._parameter.port) url += ':' + me._parameter.port;
+  if (me._parameter !== null && me._parameter.bolt !== null) {
+    var url = 'bolt://' + me._parameter.bolt.server;
+    if (me._parameter.bolt.port) url += ':' + me._parameter.bolt.port;
 
-    me._connection = Bolt.driver(url, Bolt.auth.basic(me._parameter.user, me._parameter.password));
+    me._connection = Bolt.driver(url, Bolt.auth.basic(me._parameter.bolt.user, me._parameter.bolt.password));
   }
 
   return me;
