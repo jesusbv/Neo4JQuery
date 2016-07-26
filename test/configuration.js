@@ -3,9 +3,10 @@ var Driver = require('../src/Driver/Driver');
 module.exports = {
   bolt: {
     server: "192.168.2.101",
-    user: "neo4j",
-    password: "neo4j",
-    port: 7475
+    user: "root",
+    password: "FamilyTreeGraph",
+    port: 7475,
+    type: Driver.DRIVER_TYPE_BOLT
   },
   rest: {
     server: "192.168.2.101",
@@ -13,7 +14,7 @@ module.exports = {
     endpoint: "/db/data/",
 //    user: "neo4j",
 //    password: "neo4j",
-    port: 7474
-  },
-  type: Driver.DRIVER_TYPE_BOLT
+    port: 7474,
+    type: Driver.DRIVER_TYPE_HTTP
+  }
 };

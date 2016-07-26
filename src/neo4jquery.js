@@ -26,7 +26,8 @@ var Neo4JQuery = function() {
    *
    * @returns {Neo4JQuery}
    */
-  this.flushList = function() {
+  this.flushConnections = function() {
+    // @todo Close all available connections before removing them from list!
     _connections.clean();
     return this;
   };
@@ -94,16 +95,18 @@ var Neo4JQuery = function() {
     if (typeof connection === 'function') {
       callback = connection;
       connection = 'default';
-    } else if (typeof connection !== 'string')
+    } else if (connection === void 0 || connection === null || typeof connection !== 'string')
       connection = 'default';
 
     var session = _connections.searchBy('name', connection);
 
+
     if (!session || !session.getDriver ) {
       callback({error: {message: 'No active connection with name "' + connection + '" found.', code: 0}}, null);
-    }
-    else{
+    } else{
+
       session = session.getDriver();
+
       if (query && typeof query === 'string') {
         session.execute(query, parameters, function(err, result) {
           if (session.getType() === Driver.DRIVER_TYPE_BOLT)
@@ -285,6 +288,7 @@ var Neo4JQuery = function() {
 
     // Query the database.
     me.query(query, options.builder.getParameters(), options.connection, function(err, result) {
+      //console.log(err, result);
       query = null;
       options.builder.reset();
       if (err) {
