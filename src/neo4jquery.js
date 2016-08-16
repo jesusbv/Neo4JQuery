@@ -18,6 +18,7 @@ var Neo4JQuery = function() {
     , _configuration = null;
   /**
    * The Cypher builder object.
+   * X
    */
   this.Builder = null;
 
@@ -32,7 +33,7 @@ var Neo4JQuery = function() {
     return this;
   };
   /**
-   *
+   * X
    * @param configuration
    * @returns {Neo4JQuery}
    */
@@ -65,7 +66,7 @@ var Neo4JQuery = function() {
   };
 
   /**
-   *
+   * X
    * @param connection
    * @returns {Neo4JQuery}
    */
@@ -83,6 +84,7 @@ var Neo4JQuery = function() {
   /**
    * Query the database directly with a Cypher query.
    *
+   * X
    * @param query {string} The Cypher query string.
    * @param parameters {object} An JSON object with the parameters used in the query string.
    * @param connection {string} The name of the connection to send the query.
@@ -123,7 +125,7 @@ var Neo4JQuery = function() {
 
   /**
    * Start transaction (only with use of Bolt protocol).
-   *
+   * X-> placeholder
    * @returns {boolean}
    */
   this.beginTransaction = function(connection) {
@@ -142,7 +144,7 @@ var Neo4JQuery = function() {
 
   /**
    * Commit existing transaction (only with use of Bolt protocol).
-   *
+   * X-> placeholder
    * @param callback
    */
   this.commit = function(callback) {
@@ -170,12 +172,12 @@ var Neo4JQuery = function() {
 
   /**
    * Execute a direct stored procedure call.
-   *
+   * X
    * @param domain {string}
    * @param procedureName {string}
    * @param callback {function}
    */
-  //this.Call = function(domain, procedureName, callback) {
+  this.Call = function(domain, procedureName, callback) {
   //  "use strict";
   //
   //  domain = domain || null;
@@ -214,25 +216,25 @@ var Neo4JQuery = function() {
   //      callback({message: "The given domain and procedure name is not a valid stored procedure name.", code: 0}, null);
   //    }
   //  }
-  //};
+  };
 
   /**
    * Execute the query/ies build with the Cypher builder.
-   *
+   * X
    * @param options {object}
    */
   this.execute = function(options) {
-    if (!options.success) options.success = function(result) {};
-    if (!options.error) options.error = function(err) {console.log(err);};
+
     // Without a builder it makes no sense to query the database.
     if (!options.builder) options.error({message: 'No Cypher query builder found.', code: 1001}, null);
-
     // Default settings
     if (_.isUndefined(options.cached) || _.isNull(options.cached)) options.cached = false;
-    if(!options.connection) options.connection = 'default';
     if (!options.labelMap || _.isEmpty(options.labelMap)) options.labelMap = {};
-    if (!options.closeConnection) options.closeConnection = false;
+    if(!options.connection) options.connection = 'default';
 
+    if (!options.closeConnection) options.closeConnection = false;
+    if (!options.success) options.success = function(result) {};
+    if (!options.error) options.error = function(err) {console.log(err);};
 
     var me = this
       , query = "";
@@ -304,7 +306,6 @@ var Neo4JQuery = function() {
       }
     });
   };
-
 };
 
 /**

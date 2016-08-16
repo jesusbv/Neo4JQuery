@@ -11,7 +11,6 @@ var Aggregation = function() {
   this.PERCENTILE_CONT = 10;
 
   this.aggregation = [];
-  this.distinct = false;
 };
 
 Aggregation.prototype.AggregateResultsBy = function(funcId, expression, distinct, value) {
@@ -64,3 +63,9 @@ Aggregation.prototype.AggregateResultsBy = function(funcId, expression, distinct
 Aggregation.prototype.get = function() {
   return this.aggregation.join(', ');
 };
+
+Aggregation.Create = function() {
+  return new Aggregation();
+};
+
+module.exports = Aggregation;

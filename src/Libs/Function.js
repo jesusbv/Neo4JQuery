@@ -32,7 +32,7 @@ Functions.prototype.PredicateFunction = function(funcId, variable, list, predica
     if (!variable) variable = 'dummyVariable2';
     if (predicate) predicate = variable + '.'+ predicate;
 
-    query = ' NONE ( ' + variable + ' IN ' + list + ((predicate !== null ) ? ' WHERE ' + predicate : '');
+    query = ' ( ' + variable + ' IN ' + list + ((predicate !== null ) ? ' WHERE ' + predicate : '');
 
     switch(funcId) {
       case me.PREDICATE_FUNCTION_ALL:
@@ -58,25 +58,55 @@ Functions.prototype.PredicateFunction = function(funcId, variable, list, predica
 };
 /**
  *
- * @param pattern
+ * @param pattern {string} The pattern or property that has to be checked as existent.
+ * @param asName {string} The name for the whole result of the check.
  * @returns {string}
- * @constructor
  */
-Functions.prototype.Exists = function(pattern) {
+Functions.prototype.Exists = function(pattern, asName) {
   pattern = pattern || null;
 
   var query = '';
 
   if (pattern)
+    query += ' EXISTS (' + pattern + ') ';
+
+  if (asName && asName !== '')
+    query += 'AS ' + asName;
 
   return query;
 };
 
 // Scalar functions
-// Size of lists or expressions
-Functions.prototype.Size = function() {};
+
+/**
+ *
+ * @param pattern
+ * @param asName
+ * @returns {string}
+ */
+Functions.prototype.Size = function(pattern, asName) {
+  var query = '';
+
+  if (typeof pattern === 'string') {
+    // Pattern
+    pattern = (pattern.length > 0) ? pattern : null;
+  } else if (Array.isArray(pattern) && pattern.length > 0) {
+    // List of elements
+    pattern = '[' + (pattern.join(', ')) + ']';
+  } else
+    pattern = null;
+
+  if (pattern)
+    query += ' SIZE (' + pattern + ') ';
+
+  if (asName && asName !== '' && query.length > 0)
+    query += 'AS ' + asName;
+
+  return query;
+};
+
 // Path length or string length
-Functions.prototype.Length = function() {};
+Functions.prototype.Length = function(path) {};
 // Type of relationship
 Functions.prototype.Type = function() {};
 // Node id
@@ -92,7 +122,7 @@ Functions.prototype.StartNode = function(relationship) {};
 // The end node of a relationship
 Functions.prototype.EndNode = function(relationship) {};
 Functions.prototype.Properties = function() {};
-Functions.prototype.ToINt = function() {};
+Functions.prototype.ToInt = function() {};
 Functions.prototype.ToFloat = function() {};
 
 // List functions
@@ -151,3 +181,5 @@ Functions.Create = function() {
   if (null === _instance) _instance = new Functions();
   return _instance;
 };
+
+module.exports = Functions;

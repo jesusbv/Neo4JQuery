@@ -89,6 +89,7 @@ BoltDriver.prototype.beginTransaction = function(callback) {
     else if (me._transaction !== null) callback(null, me._transaction);
     else {
       me._transaction = this._connection.beginTransaction();
+      me._transactionStarted = true;
       callback(null, me._transaction);
     }
   });
@@ -101,8 +102,10 @@ BoltDriver.prototype.beginTransaction = function(callback) {
  * @returns {BoltDriver}
  */
 BoltDriver.prototype.commit = function() {
-  if (this._transaction !== null)
+  if (this._transaction !== null) {
     this._transaction.commit();
+    this._transactionStarted = false;
+  }
   return this;
 };
 
