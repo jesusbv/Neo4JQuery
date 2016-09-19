@@ -36,23 +36,21 @@ Functions.prototype.PredicateFunction = function(funcId, variable, list, predica
 
     switch(funcId) {
       case me.PREDICATE_FUNCTION_ALL:
-        func = ' ALL ';
+        func = ' ALL';
         break;
       case me.PREDICATE_FUNCTION_ANY:
-        func = ' ANY ';
+        func = ' ANY';
         break;
       case me.PREDICATE_FUNCTION_NONE:
-        func = ' NONE ';
+        func = ' NONE';
         break;
       case me.PREDICATE_FUNCTION_SINGLE:
-        func = ' SINGLE ';
+        func = ' SINGLE';
         break;
     }
 
     query = func + query;
   }
-
-
 
   return query;
 };
@@ -68,7 +66,7 @@ Functions.prototype.Exists = function(pattern, asName) {
   var query = '';
 
   if (pattern)
-    query += ' EXISTS (' + pattern + ') ';
+    query += ' EXISTS(' + pattern + ') ';
 
   if (asName && asName !== '')
     query += 'AS ' + asName;
@@ -80,24 +78,24 @@ Functions.prototype.Exists = function(pattern, asName) {
 
 /**
  *
- * @param pattern
- * @param asName
+ * @param pattern (array|string) Values or path nodes that have to be counted.
+ * @param asName (string) The name of the number that is returned.
  * @returns {string}
  */
 Functions.prototype.Size = function(pattern, asName) {
   var query = '';
 
   if (typeof pattern === 'string') {
-    // Pattern
+    // Path pattern
     pattern = (pattern.length > 0) ? pattern : null;
   } else if (Array.isArray(pattern) && pattern.length > 0) {
-    // List of elements
+    // List of elements that have to be counted
     pattern = '[' + (pattern.join(', ')) + ']';
   } else
     pattern = null;
 
   if (pattern)
-    query += ' SIZE (' + pattern + ') ';
+    query += ' SIZE(' + pattern + ') ';
 
   if (asName && asName !== '' && query.length > 0)
     query += 'AS ' + asName;
@@ -177,7 +175,7 @@ Functions.prototype.Split = function() {};
 Functions.prototype.Reverse = function() {};
 Functions.prototype.ToString = function() {};
 
-Functions.Create = function() {
+Functions.singleton = function() {
   if (null === _instance) _instance = new Functions();
   return _instance;
 };

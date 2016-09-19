@@ -185,14 +185,8 @@ Closes the connection to a database of the specified driver. To close a connecti
 <strong>Example</strong>
 
 ```javascript
-var db = require('neo4jquery').singleton({
-        server: "bolt://localhost",
-        user: "boltTest",
-        password: "changePassword",
-        port: 7475,
-        type: Driver.DRIVER_TYPE_BOLT,
-        connection: 'readServer'
-      })
+var db = require('neo4jquery').singleton()
+  , db.connect({...})
       , Builder = db.Builder;
   
   Builder
@@ -223,14 +217,7 @@ If you are using the `Bolt` driver the connection is closed automatically before
 
 ```javascript
 var db = require('neo4jquery').singleton()
-  , db.connect({
-      server: "bolt://localhost",
-      user: "boltTest",
-      password: "changePassword",
-      port: 7475,
-      type: Driver.DRIVER_TYPE_BOLT,
-      connection: 'readServer'
-    });
+  , db.connect({...});
   , query = "MATCH (n:Node {field1: {v1}})-[r1:IS_LABEL]-(n2:Node2 {field2: {v2}}) RETURN n"
   , parameters = {v1: "value1", v2: "value2"}
 
@@ -259,11 +246,12 @@ It is also possible to pass-in the two parts of the procedure name only in domai
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , domain = "com.example.test.lib"
   , procedureName = "hasRelation()";
 
-  graph.Call(domain, procedureName, function(err, list) {
+  db.Call(domain, procedureName, function(err, list) {
       if (err || void 0 === list) {
         callback(err, void 0);
       } else {
@@ -276,10 +264,11 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 Or you can shorten the call by using this:
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , completeProcedureName = "com.example.test.lib.hasRelation()";
 
-  graph.Call(completeProcedureName, function(err, list) {
+  db.Call(completeProcedureName, function(err, list) {
       if (err || void 0 === list) {
         callback(err, void 0);
       } else {
@@ -301,8 +290,8 @@ The Cypher builder object.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
-  , builder = graph.Builder;
+var db = require("neo4jquery").singleton()
+  , builder = db.Builder;
 
   ...
   ...
@@ -341,24 +330,27 @@ Executes the query and returns result set.
 * `options` (Object) - An config object with needed settings.
 - `builder` (Builder) - The Cypher query builder you created the query with.
 - `cached` (boolean) - Flag set to false for default. Set to true Neo4JQuery will use the last cached query for execution.
-- `aliases` (Object) - Setting with aliases for the returned result placeholder
+- `labelMap` (Object) - Set a map of expected result placeholder to replace them.
+- `connection` (String) - Name of connection to be used.
 - `success` (function) - Callback function used if query was successful.
 - `error` (function) - Callback function used if query was unsuccessful.
 
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
-  , builder = graph.Builder();
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = db.Builder();
 
     builder
       .reset()
       .Match('u', 'User', {username: "testuser", password: "testpass"});
 
-    graph.execute({
+    db.execute({
       builder: builder,
       cached: false,
-      aliases: {
+      connection: 'readOnlyServer',
+      labelMap: {
         u: 'user'
       },
       success: function(results) {
@@ -384,7 +376,8 @@ Resets the builder object (inclusive cached query). Should be used to be as firs
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder.reset();
@@ -404,14 +397,15 @@ Matches data specified through labels and parameters and bound to the placeholde
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
     .reset()
     .Match('n', 'node', false, {field1: '...', field2: '...'});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -442,14 +436,15 @@ If there is no information found the placeholder will be null.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
     .reset()
     .OptionalMatch('n', 'node', {field1: '...', field2: '...'});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -478,14 +473,15 @@ Try to create and insert new node with given parameters and label.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
     .reset()
     .Merge('u', 'User', {field1: '...', field2: '...', createdAt: 120987654321});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -518,7 +514,8 @@ Try connect two nodes with a relationship with given information.
 ```javascript
 // Here the first value in the nodes array points to the second value 
 // via relationship 'ASSIGNED_WITH_EACH_OTHER'!
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -529,7 +526,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .With(['u', 'n'])
     .MergeRelationShip(['n', 'u'], 'r', 'ASSIGNED_WITH_EACH_OTHER', {field5: '...', field6: '...'});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -563,7 +560,8 @@ Event used with _Merge_ to be executed if _Merge_ creates a new node/relationshi
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -573,7 +571,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .toNode('n', 'Note', {field3: ..., field4: ...})
     .onCreate('SET u.createdAt=timestamp(), n.createdAt=timestamp()');
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -605,7 +603,8 @@ Event used with _Merge_ to be executed if _Merge_ matches a node.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -615,7 +614,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .toNode('n', 'Note', {field3: ..., field4: ...})
     .onMatch('SET u.visited=timestamp(), n.visited=timestamp()');
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -647,7 +646,8 @@ Please take care of the order of relationships and nodes you want to remove.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -657,7 +657,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .toNode('u2', 'User', {...})
     .Delete(['r1', 'u', 'u2']);
 
-  graph.execute({
+  db.execute({
     builder: builder,
     success: function(results) {
       /**
@@ -680,7 +680,8 @@ Sets a driver which is connected to a Neo4j database. The only requirement is th
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -690,7 +691,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .Match('u2', 'User', {username: 'neo4jqueryuser2', password: 'password'})
     .MergeRelationShip(['u', 'u2'], 'r', 'ASSIGNED_WITH_EACH_OTHER', {field1: '...', field2: '...'});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -725,7 +726,8 @@ Sets conditions to find specific nodes or relationships.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -733,7 +735,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .Match('u', 'User')
     .Where("u.username={username} and u.password={password}", {username: 'testuser', password: 'password'});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -764,7 +766,8 @@ Sets given properties to a node or relationship.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -773,7 +776,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .Where("u.username={username} and u.password={password}", {username: 'neo4jqueryuser', password: 'password'})
     .Set('u', {createdAt: 1440360134452, updatedAt: 1440360134452});
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -801,7 +804,9 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -815,7 +820,9 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -829,7 +836,9 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -843,7 +852,9 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -857,23 +868,10 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
-
-
-<a name="literalmap"/>
-<h4>LiteralMap(map)</h4>
-
-
-<strong>Arguments</strong>
-
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
-
-<strong>Example</strong>
-```javascript
-
-```
-
 
 
 <a name="foreacharray"/>
@@ -886,7 +884,9 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -903,7 +903,8 @@ Adds a cypher foreach loop to the query to update the nodes in a list.
 <strong>Example</strong>
 
 ```javascript
-var graph = require("neo4jquery").setConnection(<driver object>)
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
   , builder = graph.Builder();
 
   builder
@@ -912,7 +913,7 @@ var graph = require("neo4jquery").setConnection(<driver object>)
     .Where("u.updatedAt > {timestamp}", {timestamp: new Date().getTime() - 3600})
     .ForeachCondition('user IN u', 'SET user.visited=true');
 
-  graph.execute({
+  db.execute({
     builder: builder,
     cached: false,
     aliases: {
@@ -938,26 +939,36 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `placeholder` (string) - The placeholder of the node.
+* `label` (string) - The label of the node.
+* `parameter` (object) - A list of values for parmeterized Cypher query.
+* `action` (number) - The action that has to be executed like "MATCH" or "MERGE".
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
 
 <a name="batchcreate"/>
-<h4>BatchCreate(placeholderPrefixes, labels, unique, parameters)</h4>
+<h4>BatchCreate(placeholderPrefixes, labels, parameters)</h4>
 
+Creates new nodes in one query via comma seperated list of nodes. The placeholders are the leading list. If one of the other lists (labels and parameters) come to the end before placeholders list the last of there values are taken for the rest of the placeholders list.
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `placeholderPrefixes` (array) - A list of placeholders the new nodes should have on return.
+* `labels` (array) - A list of labels of the new nodes.
+* `parameters` (array) - The list of parameter objects with the values for the single node.
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -967,11 +978,15 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `placeholder` (string) - The placeholder of the node which is connected via relationship.
+* `label` (string) - The label of the relationship.
+* `parameter` (object) - The list of values for a parameterized Cypher query.
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -981,11 +996,15 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `relationPlaceholder` (string) - The placeholder of the relationship itself.
+* `label` (string) - The label of the relationship.
+* `parameter` (object) - The list of values for a parameterized Cypher query.
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -995,11 +1014,16 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `placeholders` (array) - The 2 placeholders which are connected in the Cypher query.
+* `relationPlaceholders` (string) - The placeholder of the relationship itself.
+* `label` (string) - The label of the relationship.
+* `parameter` (object) - The list of values for a parameterized Cypher query.
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -1009,11 +1033,15 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `placeholder` (string) - The placeholder of the node which has to be started with.
+* `label` (string) - The label of the starting node.
+* `parameter` (Object) - The list of values for a parameterized Cypher query.
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -1023,11 +1051,13 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+* `labelMap` (Object) - A map to replace expected result placeholder names.
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -1037,11 +1067,14 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+
+--
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 
 
@@ -1051,10 +1084,12 @@ var graph = require("neo4jquery").setConnection(<driver object>)
 
 <strong>Arguments</strong>
 
-* `nodes` (array) - The placeholder of the nodes which has to be connected with each other.
+--
 
 <strong>Example</strong>
 ```javascript
-
+var db = require("neo4jquery").singleton()
+  , db.connect({...})
+  , builder = graph.Builder();
 ```
 

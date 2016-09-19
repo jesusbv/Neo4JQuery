@@ -45,7 +45,7 @@ describe('Test match functionality', function() {
       success: function(data) {
         should(data).be.not.null().and.be.an.Object();
         // Match the new user
-        builder.reset().Merge('u', 'User', {firstName: 'Gabi', lastName: 'Glubsch', password: 'test'});
+        builder.reset().Match('u', 'User', {firstName: 'Gabi', lastName: 'Glubsch', password: 'test'});
 
         neo4jGraph.execute({
           builder: builder,
@@ -54,6 +54,8 @@ describe('Test match functionality', function() {
             should(data).be.not.null().and.be.an.Object();
             should(data.u).be.not.null().and.be.an.Object();
             should(data.u.firstName).be.not.null().and.be.a.String().and.be.equal('Gabi');
+            should(data.u.lastName).be.not.null().and.be.a.String().and.be.equal('Glubsch');
+            should(data.u.password).be.not.null().and.be.a.String().and.be.equal('test');
             done();
           },
           error: function(e) {
@@ -150,7 +152,7 @@ describe('Test match functionality', function() {
    */
   it('Test the "start" with "match" and "set"', function(done) {
     builder
-      .Start('u', 'User', {})
+      .Start('u=nodes()', {})
       .Match('u')
       .Set('u.found = {found}, u.registered = {registered}', {found: true, registered: true});
 
@@ -222,6 +224,16 @@ describe('Test match functionality', function() {
       closeConnection: false,
       labelMap: {u: 'u'}
     });
+  });
+
+  it('Test "match" with "return" and "functions" use.', function(done) {
+    builder
+      .Match('u', 'User', {})
+      .Where('u.firstName = {firstName1} OR u.firstName = {firstName2}', {firstName1: "Hermine", firstName2: "Gabi"})
+      .Return([
+        builder.Functions.Size('u')
+      ]);
+    done();
   });
 
   it('', function(done) {

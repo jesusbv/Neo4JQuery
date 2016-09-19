@@ -1,3 +1,7 @@
+/**
+ *
+ * @constructor
+ */
 var Aggregation = function() {
   this.COUNT = 1;
   this.SUM = 2;
@@ -13,6 +17,14 @@ var Aggregation = function() {
   this.aggregation = [];
 };
 
+/**
+ *
+ * @param funcId
+ * @param expression
+ * @param distinct
+ * @param value
+ * @returns {Aggregation}
+ */
 Aggregation.prototype.AggregateResultsBy = function(funcId, expression, distinct, value) {
   expression = expression || null;
   distinct = (distinct);
@@ -23,35 +35,35 @@ Aggregation.prototype.AggregateResultsBy = function(funcId, expression, distinct
 
   switch (funcId) {
     case me.COUNT:
-      aggregation = ' count' ;
+      aggregation = ' count';
       break;
     case me.SUM:
-      aggregation = ' sum' ;
+      aggregation = ' sum';
       break;
     case me.AVG:
-      aggregation = ' avg' ;
+      aggregation = ' avg';
       break;
     case me.STDEV:
-      aggregation = ' stdev' ;
+      aggregation = ' stdev';
       break;
     case me.STDEVP:
-      aggregation = ' stdevp' ;
+      aggregation = ' stdevp';
       break;
     case me.MAX:
-      aggregation = ' max' ;
+      aggregation = ' max';
       break;
     case me.MIN:
-      aggregation = ' min' ;
+      aggregation = ' min';
       break;
     case me.COLLECT:
-      aggregation = ' collect' ;
+      aggregation = ' collect';
       break;
     case me.PERCENTILE_DISC:
-      aggregation = ' percentileDisc' ;
+      aggregation = ' percentileDisc';
       if (value) expression += ', ' + value;
       break;
     case me.PERCENTILE_CONT:
-      aggregation = ' percentileCont' ;
+      aggregation = ' percentileCont';
       if (value) expression += ', ' + value;
       break;
   }
@@ -60,11 +72,29 @@ Aggregation.prototype.AggregateResultsBy = function(funcId, expression, distinct
   return this;
 };
 
+/**
+ *
+ * @returns {string}
+ */
 Aggregation.prototype.get = function() {
   return this.aggregation.join(', ');
 };
 
-Aggregation.Create = function() {
+/**
+ *
+ * @returns {Aggregation}
+ */
+Aggregation.prototype.reset = function() {
+  this.aggregation.length = 0;
+  this.aggregation = [];
+  return this;
+};
+
+/**
+ *
+ * @returns {Aggregation}
+ */
+Aggregation.instance = function() {
   return new Aggregation();
 };
 

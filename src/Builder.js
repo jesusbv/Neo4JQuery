@@ -2,11 +2,10 @@
 
 var _instance = null
   , _ = require('underscore')
+  , Error = require('./Error').instance()
   , LinkedList = require('node-linkedlist')
-  , Aggregation = require('./Libs/Aggregation')
-  , AggregationBuilder = null
-  , Functions = require('./Libs/Function')
-  , FunctionBuilder = null;
+  , Aggregation = require('./Libs/Aggregation').instance()
+  , Functions = require('./Libs/Function').instance();
 
 /**
  * @todo Implement options objects as method signature to pass in parameter into builder methods.
@@ -14,6 +13,9 @@ var _instance = null
 var Builder = function() {
   this.CASE_TYPE_SIMPLE = 1;
   this.CASE_TYPE_GENERIC = 2;
+
+  this.Functions = null;
+  this.Aggregation = null;
 
   var  _caseType = 0
     , _whenCalled = false
@@ -31,6 +33,7 @@ var Builder = function() {
         orderByDirection: ' ASC ',
         skip: 0,
         limit: 0,
+        return: [],
         errors: [] // Error list that is filled while methods are called. I do not know yet how to use it now.
       };
 
@@ -81,7 +84,7 @@ var Builder = function() {
         return ' CREATE INDEX ON :';
         break;
       case me.DROP_INDEX_ON:
-        return ' CREATE INDEX ON :';
+        return ' DROP INDEX ON :';
         break;
       default:
         return '';
@@ -102,6 +105,7 @@ var Builder = function() {
     _query.orderBy = [];
     _query.skip = 0;
     _query.limit = 0;
+    _query.return = [];
     _query.errors = [];
 
     _caseType = 0;
@@ -109,6 +113,8 @@ var Builder = function() {
     _thenCalled = false;
     _uniqueIds.length = 0;
     _queryPlaceholders = [];
+
+    this.Aggregation.reset();
 
     return this;
   };
@@ -123,21 +129,27 @@ var Builder = function() {
     labelMap = (labelMap && !_.isEmpty(labelMap)) ? _.keys(labelMap) : [];
 
     var me = this
-      , query = (_query.start != '') ? _query.start : '';
+      , query = '';
 
     if (me.hasQueries()) {
+      query += (_query.start != '') ? _query.start : '';
       // Concat all queries.
       query += _query.queries.join('');
 
       if (_query.where !== '') query += _query.where;
       // Get the placeholders for return them...
-      if (labelMap.length == 0 && Array.isArray(_queryPlaceholders) && _queryPlaceholders.length > 0) {
+      query += ' RETURN ' + ((_query.distinct === true) ? 'DISTINCT ' : '');
+
+      if (Array.isArray(_query.return) && _query.return.length > 0) {
         // Return placeholders.
-        query += ' RETURN ' + ((_query.distinct === true) ? 'DISTINCT ' : '') + _queryPlaceholders.join(', ');
+        query += _queryPlaceholders.join(', ');
+      } else if (labelMap.length == 0 && Array.isArray(_queryPlaceholders) && _queryPlaceholders.length > 0) {
+        // Return placeholders.
+        query += _queryPlaceholders.join(', ');
       } else {
         // ... or have given placeholder to return.
         labelMap = _.unique(labelMap);
-        query += ' RETURN ' + ((_query.distinct === true) ? 'DISTINCT ' : '') + labelMap.join(', ');
+        query += labelMap.join(', ');
       }
 
       query +=
@@ -168,12 +180,30 @@ var Builder = function() {
   /**
    *
    * @param startCondition
-   * @param parameter
+   * @param parameters
    * @returns {Builder}
    */
-  this.Start = function(startCondition, parameter) {
+  this.Start = function(startCondition, parameters) {
     _query.start = this.getAction(this.START) + startCondition;
-    _parameters = _.extend(_parameters, parameter);
+    _parameters = _.extend(_parameters, parameters);
+
+    return this;
+  };
+
+  /**
+   *
+   * @param parameters {array|string}
+   * @returns {Builder}
+   */
+  this.Return = function(parameters) {
+    if (Array.isArray(parameters) && parameters.length > 0) {
+      _query.return = parameters;
+    } else if (typeof parameters === 'string') {
+      _query.return = parameters.split(',');
+      _query.return = _.map(_query.return, function(placeholder) {
+        return placeholder.replace(' ');
+      });
+    }
 
     return this;
   };
@@ -213,7 +243,6 @@ var Builder = function() {
    * @param label
    * @param parameter
    * @returns {Builder}
-   * @constructor
    */
   this.OptionalMatch = function(placeholder, label, parameter) {
     return this.Match(placeholder, label, parameter, true);
@@ -322,10 +351,10 @@ var Builder = function() {
 
   /**
    *
+   * @param kind
    * @param label
    * @param property
    * @returns {Builder}
-   * @constructor
    */
   this.IndexOn = function(kind, label, property) {
     kind = kind || null;
@@ -358,7 +387,6 @@ var Builder = function() {
    *
    * @param value
    * @returns {Builder}
-   * @constructor
    */
   this.StartsWith = function(value) {
     value = value || null;
@@ -374,7 +402,6 @@ var Builder = function() {
    * String ends with given part.
    * @param value
    * @returns {Builder}
-   * @constructor
    */
   this.EndsWith = function(value) {
     value = value || null;
@@ -391,7 +418,6 @@ var Builder = function() {
    *
    * @param value
    * @returns {Builder}
-   * @constructor
    */
   this.Contains = function(value) {
     value = value || null;
@@ -604,15 +630,29 @@ var Builder = function() {
     condition = condition || null;
     parameters = parameters || null;
 
-    if (!_.isNull(condition) && typeof condition === 'string')
+    if (!_.isNull(condition) && typeof condition === 'string') {
       _query.queries.push(' WHERE NOT ' + condition);
 
-    if (!_.isNull(parameters))
-      _parameters = _.extend(_parameters, parameters);
+      if (!_.isNull(parameters))
+        _parameters = _.extend(_parameters, parameters);
+    }
 
     return this;
   };
 
+  this.WhereAnd = function(condition, parameters) {
+    condition = condition || null;
+    parameters = parameters || null;
+
+    if (!_.isNull(condition) && typeof condition === 'string') {
+      _query.queries.push(' AND ' + condition);
+
+      if (!_.isNull(parameters))
+        _parameters = _.extend(_parameters, parameters);
+    }
+
+    return this;
+  };
   /**
    * X
    * @param placeholder
@@ -738,9 +778,9 @@ var Builder = function() {
       if (_caseType === this.CASE_TYPE_GENERIC && null !== field) // @todo The solution has bugs because here only "generic case" is handled but not "simple case"
         _query.cases.push(query + ((null !== field) ? field + '=' + value : value));
       else
-        _query.errors.push({message: 'Field is missing on generic case.', method: 'When'});
+        _query.errors.push(Error.getByCode(Error.BUILDER_GENERIC_CASE_FIELD_MISSING, {method: 'When'}));
     } else {
-      _query.errors.push({message: 'No value given.', method: 'When'});
+      _query.errors.push(Error.getByCode(Error.BUILDER_NO_WHEN_VALUE, {method: 'When'}));
     }
 
     return this;
@@ -758,11 +798,11 @@ var Builder = function() {
 
     if (null !== value) {
       if (!_whenCalled)
-        _query.errors.push({message: 'CASE method "Then" called before "When".', method: 'Then'});
+        _query.errors.push(Error.getByCode(Error.BUILDER_THEN_CALLED_BEFORE_WHEN, {method: 'Then'}));
       else
         _query.cases.push(query + value);
     } else {
-      _query.errors.push({message: 'No value given.', method: 'Then'});
+      _query.errors.push(Error.getByCode(Error.BUILDER_NO_WHEN_VALUE, {method: 'Then'}));
     }
 
     return this;
@@ -787,7 +827,7 @@ var Builder = function() {
    */
   this.End = function() {
     if (!_whenCalled || !_thenCalled) {
-      _query.errors.push({message: 'CASE method "End" called before "When" or "Then".', method: 'End'});
+      _query.errors.push(Error.getByCode(Error.BUILDER_END_CALLED_BEFORE_WHEN, {method: 'End'}));
     } else {
       _query.cases.push(' END ')
     }
@@ -802,7 +842,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.All = function(variable, list, predicate) {
-    _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_ALL, variable, list, predicate));
+    _query.queries.push(Functions.PredicateFunction(Functions.PREDICATE_FUNCTION_ALL, variable, list, predicate));
     return this;
   };
 
@@ -815,7 +855,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Any = function(variable, list, predicate) {
-    _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_ANY, variable, list, predicate));
+    _query.queries.push(Functions.PredicateFunction(Functions.PREDICATE_FUNCTION_ANY, variable, list, predicate));
     return this;
   };
 
@@ -828,7 +868,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.None = function(variable, list, predicate) {
-    _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_NONE, variable, list, predicate));
+    _query.queries.push(Functions.PredicateFunction(Functions.PREDICATE_FUNCTION_NONE, variable, list, predicate));
     return this;
   };
 
@@ -841,7 +881,31 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Single = function(variable, list, predicate) {
-    _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_SINGLE, variable, list, predicate));
+    _query.queries.push(Functions.PredicateFunction(Functions.PREDICATE_FUNCTION_SINGLE, variable, list, predicate));
+    return this;
+  };
+
+  /**
+   * Check if the path or ... exists.
+   *
+   * @param pattern {string} The pattern or property that has to be checked as existent.
+   * @param asName {string} The name for the whole result of the check.
+   * @returns {Builder}
+   */
+  this.Exists = function(pattern, asName) {
+    _query.queries.push(Functions.Exists(pattern, asName));
+    return this;
+  };
+
+  /**
+   * Check if the path or ... exists.
+   *
+   * @param pattern {array|string} Values or path pattern
+   * @param asName {string} The name of the number that is returned.
+   * @returns {Builder}
+   */
+  this.Size = function(pattern, asName) {
+    _query.queries.push(Functions.Size(pattern, asName));
     return this;
   };
 
@@ -853,8 +917,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Count = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.COUNT, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.COUNT, expression, distinct, value);
     return this;
   };
 
@@ -866,8 +929,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Sum = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.SUM, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.SUM, expression, distinct, value);
     return this;
   };
 
@@ -879,8 +941,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Avg = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.AVG, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.AVG, expression, distinct, value);
     return this;
   };
 
@@ -892,8 +953,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.StDev = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.STDEV, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.STDEV, expression, distinct, value);
     return this;
   };
 
@@ -905,8 +965,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.StDevP = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.STDEVP, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.STDEVP, expression, distinct, value);
     return this;
   };
 
@@ -918,8 +977,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Max = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.MAX, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.MAX, expression, distinct, value);
     return this;
   };
 
@@ -931,8 +989,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Min = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.MIN, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.MIN, expression, distinct, value);
     return this;
   };
 
@@ -944,8 +1001,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.Collect = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.COLLECT, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.COLLECT, expression, distinct, value);
     return this;
   };
 
@@ -957,8 +1013,7 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.PercentileDisc = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.PERCENTILE_DISC, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.PERCENTILE_DISC, expression, distinct, value);
     return this;
   };
 
@@ -970,19 +1025,10 @@ var Builder = function() {
    * @returns {Builder}
    */
   this.PercentileCont = function(expression, distinct, value) {
-    var builder = getAggregation();
-    builder.AggregateResultsBy(AggregationBuilder.PERCENTILE_CONT, expression, distinct, value);
+    Aggregation.AggregateResultsBy(Aggregation.PERCENTILE_CONT, expression, distinct, value);
     return this;
   };
 
-  /**
-   *
-   * @returns {*}
-   */
-  var getAggregation = function() {
-    if (AggregationBuilder === null) AggregationBuilder = Aggregation.Create();
-    return AggregationBuilder;
-  };
   /**
    * Prepare parameters for usage for a 'parameterized' query.
    *
@@ -1062,7 +1108,6 @@ var Builder = function() {
    *
    * @param placeholderPrefixes
    * @param labels
-   * @param unique
    * @param parameters
    */
   this.BatchCreate = function(placeholderPrefixes, labels, parameters) {
@@ -1124,6 +1169,8 @@ var Builder = function() {
 Builder.singleton = function() {
   if (_.isNull(_instance) === true) {
     _instance = new Builder();
+    _instance.Functions = require('./Libs/Function').singleton();
+    _instance.Aggregation = require('./Libs/Aggregation').instance();
   }
 
   return _instance;
