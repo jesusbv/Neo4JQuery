@@ -5,7 +5,8 @@ var _ = require('underscore')
   , async = require('async')
   , LinkedList = require('node-linkedlist')
   , Bolt = require('neo4j-driver').v1
-  , Driver = require('./Driver');
+  , Driver = require('./Driver')
+  , Error = require('../Libs/Error').instance();
 
 var BoltDriver = function() {
   this._session = null;
@@ -77,7 +78,7 @@ BoltDriver.prototype.getSession = function(callback) {
   var me = this;
 
   if (me._connection === null) {
-    callback({message: 'No connection to the database available. Please connect first.', code: 0}, null);
+    callback(Error.getByCode(Error.BOLT_NO_CONNECTION_AVAILABLE), null);
   } else {
     if (me._session === null) {
       me._session = me._connection.session();
@@ -103,7 +104,7 @@ BoltDriver.prototype.getSession = function(callback) {
 BoltDriver.prototype.beginTransaction = function(callback) {
   var me = this;
   this.getSession(function(err, session) {
-    if (err) callback({message: '', code: 0}, null);
+    if (err) callback(Error.getByCode(Error.BOLT_GET_SESSION), null);
     else if (me._transaction !== null) callback(null, me._transaction);
     else {
       me._transaction = this._connection.beginTransaction();
@@ -204,7 +205,7 @@ BoltDriver.prototype.execute = function(query, parameter, callback) {
     }]
   }, function(err, resultset) {
     if (err)
-      callback({message: 'Error: Something went wrong.', code: 0, sysError: err}, null);
+      callback(Error.getByCode(Error.COMMON_ERROR_MESSAGE, err), null);
     else {
       callback(null, resultset.executeQuery);
     }

@@ -1,6 +1,7 @@
 "use strict";
 
 var _ = require('underscore')
+  , Error = require('./Libs/Error').instance()
   , LinkedList = require('node-linkedlist')
   , async = require('async')
   , Builder = require('./Builder')
@@ -121,7 +122,7 @@ var Neo4JQuery = function() {
       , me = this;
 
     if (!session || !session.getDriver ) {
-      callback({error: {message: 'No active connection with name "' + connection + '" found.', code: 0}}, null);
+      callback({error: Error.buildError('No active connection with name "' + connection + '" found.', Error.COMMON_CONNECTION_NAME_NOT_KNOWN)}, null);
     } else{
 
       session = session.getDriver();
@@ -136,7 +137,7 @@ var Neo4JQuery = function() {
           callback(err, result);
         });
       } else {
-        callback({error: {message: 'No query to execute given.', code: 0}}, null);
+        callback({error: Error.getByCode(Error.COMMON_NO_QUERY_GIVEN)}, null);
       }
     }
 
@@ -178,13 +179,13 @@ var Neo4JQuery = function() {
               callback(null, me);
             },
             onError: function(error) {
-              callback({message: 'Error on execute transactions commit.', code: 0, sysError: error}, null);
+              callback(Error.getByCode(Error.BOLT_TRANSACTION_COMMIT_FAILS, {sysError: error}), null);
             }
           });
         break;
       case Driver.DRIVER_TYPE_HTTP:
       default:
-        callback({message: 'This type does not support transactions: Neo4J Rest API', code: 0}, null);
+        callback(Error.getByCode(Error.COMMON_TYPE_REST_DOES_NOT_SUPPORT_TRANSACTION), null);
         break;
     }
   };
@@ -316,12 +317,12 @@ var Neo4JQuery = function() {
         options.error(err);
       } else {
         options.success(result);
-        //buildAliases(options.labelMap, result, function(err, newResult) {
-        //  "use strict";
-        //
-        //  if (err) options.error(err);
-        //  else options.success(newResult);
-        //});
+//        buildAliases(options.labelMap, result, function(err, newResult) {
+//          "use strict";
+//
+//          if (err) options.error(err);
+//          else options.success(newResult);
+//        });
       }
     });
   };
