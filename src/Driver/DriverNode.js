@@ -102,7 +102,7 @@ DriverNode.prototype.hasNext = function() {
   return (this._next !== null);
 };
 
-DriverNode.Create = function(driver) {
+DriverNode.instance = function(driver) {
   var node = new DriverNode();
   if (driver !== null) node.setDriver(driver);
   return node;

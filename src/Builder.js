@@ -3,8 +3,10 @@
 var _instance = null
   , _ = require('underscore')
   , LinkedList = require('node-linkedlist')
+  , Aggregation = require('./Libs/Aggregation')
+  , AggregationBuilder = null
   , Functions = require('./Libs/Function')
-  , FunctionBuilder = Functions.Create();
+  , FunctionBuilder = null;
 
 /**
  * @todo Implement options objects as method signature to pass in parameter into builder methods.
@@ -22,6 +24,7 @@ var Builder = function() {
     , _query = {
         distinct: false,
         start: '',
+        where: '',
         queries: [],
         cases: [],
         orderBy: [],
@@ -94,6 +97,7 @@ var Builder = function() {
   this.reset = function() {
     _query.start = '';
     _query.queries = [];
+    _query.where = '';
     _query.cases = [];
     _query.orderBy = [];
     _query.skip = 0;
@@ -125,6 +129,7 @@ var Builder = function() {
       // Concat all queries.
       query += _query.queries.join('');
 
+      if (_query.where !== '') query += _query.where;
       // Get the placeholders for return them...
       if (labelMap.length == 0 && Array.isArray(_queryPlaceholders) && _queryPlaceholders.length > 0) {
         // Return placeholders.
@@ -161,19 +166,16 @@ var Builder = function() {
   };
 
   /**
-   * @todo Look at documentary what is possible in Cypher with the "START" key word.
-   * @param placeholder
-   * @param label
+   *
+   * @param startCondition
    * @param parameter
-   * @constructor
+   * @returns {Builder}
    */
-  this.Start = function(placeholder, label, parameter) {
-    placeholder = placeholder || 'ph';
-    label = label || '';
-    parameter = parameter || {};
+  this.Start = function(startCondition, parameter) {
+    _query.start = this.getAction(this.START) + startCondition;
+    _parameters = _.extend(_parameters, parameter);
 
-    _query.start = this.getNodeQuery(placeholder, label, parameter, this.START);
-    _queryPlaceholders.push(placeholder);
+    return this;
   };
 
   /**
@@ -573,7 +575,7 @@ var Builder = function() {
   };
 
   /**
-   * X
+   * @todo there is a new property _query.where <- refactor the method "Where"
    * @param condition
    * @param parameters
    * @returns {Builder}
@@ -797,10 +799,11 @@ var Builder = function() {
    * @param variable {string} Name of variable used in condition.
    * @param list {string} Expression that returns a list like "nodes(x)".
    * @param predicate {string} Predicate which is tested against all list items.
-   * @returns {string}
+   * @returns {Builder}
    */
   this.All = function(variable, list, predicate) {
     _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_ALL, variable, list, predicate));
+    return this;
   };
 
   /**
@@ -809,10 +812,11 @@ var Builder = function() {
    * @param variable {string} Name of variable used in condition.
    * @param list {string} Expression that returns a list like "nodes(x)".
    * @param predicate {string} Predicate which is tested against all list items.
-   * @returns {string}
+   * @returns {Builder}
    */
   this.Any = function(variable, list, predicate) {
     _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_ANY, variable, list, predicate));
+    return this;
   };
 
   /**
@@ -821,10 +825,11 @@ var Builder = function() {
    * @param variable {string} Name of variable used in condition.
    * @param list {string} Expression that returns a list like "nodes(x)".
    * @param predicate {string} Predicate which is tested against all list items.
-   * @returns {string}
+   * @returns {Builder}
    */
   this.None = function(variable, list, predicate) {
     _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_NONE, variable, list, predicate));
+    return this;
   };
 
   /**
@@ -833,12 +838,151 @@ var Builder = function() {
    * @param variable {string} Name of variable used in condition.
    * @param list {string} Expression that returns a list like "nodes(x)".
    * @param predicate {string} Predicate which is tested against all list items.
-   * @returns {string}
+   * @returns {Builder}
    */
   this.Single = function(variable, list, predicate) {
     _query.queries.push(FunctionBuilder.PredicateFunction(Functions.PREDICATE_FUNCTION_SINGLE, variable, list, predicate));
+    return this;
   };
 
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.Count = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.COUNT, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.Sum = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.SUM, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.Avg = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.AVG, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.StDev = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.STDEV, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.StDevP = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.STDEVP, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.Max = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.MAX, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.Min = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.MIN, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.Collect = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.COLLECT, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.PercentileDisc = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.PERCENTILE_DISC, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @param expression
+   * @param distinct
+   * @param value
+   * @returns {Builder}
+   */
+  this.PercentileCont = function(expression, distinct, value) {
+    var builder = getAggregation();
+    builder.AggregateResultsBy(AggregationBuilder.PERCENTILE_CONT, expression, distinct, value);
+    return this;
+  };
+
+  /**
+   *
+   * @returns {*}
+   */
+  var getAggregation = function() {
+    if (AggregationBuilder === null) AggregationBuilder = Aggregation.Create();
+    return AggregationBuilder;
+  };
   /**
    * Prepare parameters for usage for a 'parameterized' query.
    *
@@ -896,10 +1040,21 @@ var Builder = function() {
 
   /**
    *
-   * @param values
+   * @param property
+   * @param list
    * @returns {Builder}
    */
-  this.WhereIn = function(values) {
+  this.WhereIn = function(property, list) {
+    property = property || null;
+    list = (Array.isArray(list) && list.length > 0) ? list : [];
+
+    var query = '';
+
+    if (property && list.length > 0) {
+      query += ' WHERE ' + property + ' IN [' + list.join(', ') + '] ';
+      _query.where += query;
+    }
+
     return this;
   };
 
@@ -910,18 +1065,18 @@ var Builder = function() {
    * @param unique
    * @param parameters
    */
-  this.BatchCreate = function(placeholderPrefixes, labels, unique, parameters) {
+  this.BatchCreate = function(placeholderPrefixes, labels, parameters) {
     /**
      * CREATE (u1:User {...}), (u2:User {...}), ..., (time100:Timestamp {...}));
      */
   };
 
   /**
-   * Use the map to be returned instead of the placeholder or the aliases map.
+   * Use the map to be returned instead of the placeholders.
    * @param map
    * @returns {Builder}
    */
-  this.LiteralMap = function(map) {
+  this.SetLabelMap = function(map) {
     return this;
   };
   /**
@@ -944,126 +1099,6 @@ var Builder = function() {
     return this;
   };
 
-    /**
-     *
-     * @param placeholder
-     * @param reader
-     * @param aggregateFunc
-     * @returns {Builder}
-     * @constructor
-     */
-//  this.AggregateReadOnly = function(placeholder, reader, aggregateFunc) {
-//    if (typeof placeholder === 'string') {
-//      placeholder = [placeholder];
-//    }
-//
-//    // check here the reader parameter..
-//    if (!isReader(reader) || !isAggregateFunc(aggregateFunc)) {
-//      return this;
-//    } else {
-//        // todo Check if the placeholder exists in global array because they have to be replaced by the aggregated ones.
-//      var queryPart = '';
-//      switch(reader) {
-//        case this.MATCH:
-//            queryPart = ' MATCH ' + placeholder.map(function(val){
-//                "use strict";
-//                return glueForAggregation(this.MATCH, val) + ', ';
-//            });
-//          break;
-//        case this.OPTIONAL_MATCH:
-//            queryPart = ' MATCH OPTIONAL' + placeholder.map(function(val){
-//                "use strict";
-//                return glueForAggregation(this.OPTIONAL_MATCH, val) + ', ';
-//            });
-//          break;
-//        case this.START:
-//            queryPart = ' START ' + placeholder.map(function(val){
-//                "use strict";
-//                return glueForAggregation(this.START, val) + ', ';
-//            });
-//        break;
-//      }
-//
-//        queryPart = queryPart.substr(0, -2);
-//        queries.push(queryPart);
-//      return this;
-//    }
-//  };
-
-  /**
-   *
-   * @param placeholder
-   * @param readWriter
-   * @param aggregateFunc
-   * @returns {Builder}
-   * @constructor
-   */
-//  this.AggregateReadWrite = function(placeholder, readWriter, aggregateFunc) {
-//      if (typeof placeholder === 'string') {
-//          placeholder = [placeholder];
-//      }
-//      // check here the reader parameter..
-//      if (!isReadWriter(reader) || !isAggregateFunc(aggregateFunc)) {
-//          return this;
-//      } else {
-//        // todo Check if the placeholder exists in global array because they have to be replaced by the aggregated ones.
-//        var queryPart = '';
-//          switch(readWriter) {
-//              case this.CREATE:
-//                  queryPart = ' CREATE ' + placeholder.map(function(val){
-//                          "use strict";
-//                          return glueForAggregation(this.CREATE, val) + ', ';
-//                      });
-//                  break;
-//              case this.CREATE_UNIQUE:
-//                  queryPart = ' CREATE UNIQUE ' + placeholder.map(function(val){
-//                          "use strict";
-//                          return glueForAggregation(this.CREATE_UNIQUE, val) + ', ';
-//                      });
-//                  break;
-//              case this.MERGE:
-//                  queryPart = ' MERGE ' + placeholder.map(function(val){
-//                          "use strict";
-//                          return glueForAggregation(this.MERGE, val) + ', ';
-//                      });
-//                  break;
-//              case this.DELETE:
-//                  queryPart = ' DELETE ' + placeholder.map(function(val){
-//                          "use strict";
-//                          return glueForAggregation(this.DELETE, val) + ', ';
-//                      });
-//                  break;
-//              default:
-//                  break;
-//          }
-//      }
-//    return this;
-//  };
-
-  /**
-   *
-   * @param placeholder
-   * @param aggregateFunc
-   * @returns {Builder}
-   * @constructor
-   */
-//  this.AggregateReturn = function(placeholder, aggregateFunc) {
-//      if (typeof placeholder === 'string') {
-//          placeholder = [placeholder];
-//      }
-//      // check here the reader parameter..
-//      if (!isAggregateFunc(aggregateFunc)) {
-//          return this;
-//      } else {
-//          placeholder.forEach(function(placeholder) {
-//              "use strict";
-//              QueryPlaceholders.push(glueForAggregation(aggregateFunc, placeholder));
-//          });
-//      }
-//
-//    return this;
-//  };
-
   /**
    *
    * @param idName
@@ -1080,118 +1115,6 @@ var Builder = function() {
 //    uniqueIds.push(idName);
 //    return this;
 //  };
-
-
-    /**
-     *
-     * @param reader
-     * @returns {boolean}
-     */
-//  var isReader = function(reader) {
-//      reader = reader || 0;
-//      if (typeof parseInt(reader) !== 'number')
-//        return false;
-//
-//      switch(reader) {
-//          case this.MATCH:
-//          case this.OPTIONAL_MATCH:
-//          case this.START:
-//            return true;
-//          break;
-//          default:
-//            return false;
-//          break;
-//      }
-//  };
-
-    /**
-     *
-     * @param readWriter
-     * @returns {boolean}
-     */
-//  var isReadWriter = function(readWriter) {
-//    readWriter = readWriter || 0;
-//    if (typeof parseInt(readWriter) !== 'number') {
-//      return false;
-//    }
-//
-//    var me = this;
-//    switch(readWriter) {
-//      case me.CREATE:
-//      case me.MERGE:
-//      case me.CREATE_UNIQUE:
-//      case me.DELETE:
-//        return true;
-//        break;
-//      default:
-//        return false;
-//    }
-//  };
-
-    /**
-     *
-     * @param func
-     * @returns {boolean}
-     */
-//  var isAggregateFunc = function (func) {
-//    if (isNAN(parseInt(func)))
-//      return false;
-//
-//    var me = this;
-//    switch(func) {
-//      case me.AGGREGATE_COUNT:
-//      case me.AGGREGATE_SUM:
-//      case me.AGGREGATE_AVG:
-//      case me.AGGREGATE_MIN:
-//      case me.AGGREGATE_MAX:
-//      case me.AGGREGATE_COLLECT:
-//      case me.AGGREGATE_FILTER:
-//      case me.AGGREGATE_EXTRACT:
-//        return true;
-//      default:
-//        return false;
-//    }
-//  };
-
-  /**
-   *
-   * @param func
-   * @param placeholder
-   * @returns {string}
-   */
-//  var glueForAggregation = function(func, placeholder) {
-//    var me = this;
-//      if (isAggregateFunc(func)) {
-//        switch(func) {
-//          case me.AGGREGATE_COUNT:
-//            return 'count(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_SUM:
-//            return 'sum(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_AVG:
-//            return 'avg(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_MIN:
-//            return 'min(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_MAX:
-//            return 'max(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_COLLECT:
-//            return 'collect(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_FILTER:
-//            return 'filter(' + placeholder + ')';
-//            break;
-//          case me.AGGREGATE_EXTRACT:
-//            return 'extract(' + placeholder + ')';
-//            break;
-//          default:
-//            break;
-//        }
-//      }
-//    }
   };
 
 /**

@@ -13,6 +13,7 @@ var BoltDriver = function() {
   this._connection = null;
   this._parameter = null;
   this._transactionStarted = false;
+  this._graphTypes = {};
 };
 
 /**
@@ -33,6 +34,17 @@ BoltDriver.prototype.isTransactionStarted = function() {
 
 /**
  *
+ * @param types
+ * @returns {BoltDriver}
+ */
+BoltDriver.prototype.setGraphTypes = function(types) {
+  types = types || {};
+  this._graphTypes = types;
+  return this;
+};
+
+/**
+ *
  * @param parameter
  * @returns {BoltDriver}
  */
@@ -44,9 +56,15 @@ BoltDriver.prototype.connect = function(parameter) {
     var url = 'bolt://' + me._parameter.server;
     if (me._parameter.port) url += ':' + me._parameter.port;
 
-    me._connection = Bolt.driver(url, Bolt.auth.basic(me._parameter.user, me._parameter.password));
-  }
+    // Configure bolt driver with or without authentication.
+    var user = me._parameter.user
+      , password = me._parameter.password;
 
+    if (user !== void 0 && user !== null && password !== void 0 && password !== null)
+      me._connection = Bolt.driver(url, Bolt.auth.basic(me._parameter.user, me._parameter.password));
+    else
+      me._connection = Bolt.driver(url, {});
+  }
   return me;
 };
 
@@ -89,6 +107,7 @@ BoltDriver.prototype.beginTransaction = function(callback) {
     else if (me._transaction !== null) callback(null, me._transaction);
     else {
       me._transaction = this._connection.beginTransaction();
+      me._transactionStarted = true;
       callback(null, me._transaction);
     }
   });
@@ -101,8 +120,10 @@ BoltDriver.prototype.beginTransaction = function(callback) {
  * @returns {BoltDriver}
  */
 BoltDriver.prototype.commit = function() {
-  if (this._transaction !== null)
+  if (this._transaction !== null) {
     this._transaction.commit();
+    this._transactionStarted = false;
+  }
   return this;
 };
 
@@ -128,24 +149,64 @@ BoltDriver.prototype.execute = function(query, parameter, callback) {
      * @param immediateCallback
      */
     executeQuery: ['getSessionFromConnection', function(immediateCallback, resultObj) {
-      var session = resultObj.getSessionFromConnection;
+      var session = resultObj.getSessionFromConnection
+        , resultMap = {};
 
-      session
-        .run(query, parameter)
-        .then(function(result) {
-          results.setItems(result.records, function(err, list) {
-            immediateCallback(err, list);
-          });
-        })
-        .catch(function(error) {
-          immediateCallback({message: 'Error: Query the database was not successful.', code: 0}, null);
+      var stream = session.run(query, parameter);
+      stream.subscribe({
+          onNext: function onNext(record) {
+            var i= 0, j = record.length
+              , item = null
+              , key = '';
+
+            for(; i< j; i++) {
+              key = record.keys[i];
+              item = record.get(key);
+              /**
+               * todo check if the record labels/types are one of the registered class names
+               * todo If labels/types are equal to class names in the map then create objects and set properties!!!!
+               */
+              var type = (item !== null && item.labels !== void 0) ? 'node' : (item !== null && item.types !== void 0) ? 'relationship' : null;
+
+              if (type !== null) {
+                switch(type) {
+                  case 'node':
+                    var labels = item.labels
+                      , obj = null;
+
+                    labels.forEach(function(label) {
+                      if (me._graphTypes[label] !== void 0) {
+                        obj = me._graphTypes[label].instance();
+                        obj.setId(Bolt.toString(item.identity))
+                          .set(record.properties, function(err, obj) {
+                            resultMap[key] = obj;
+                          });
+                      } else {
+                        resultMap[key] = item;
+                      }
+                    });
+                    break;
+                  case 'relationship':
+                    resultMap[key] = item;
+                    break;
+                }
+              }
+            }
+          },
+          onCompleted: function onCompleted() {
+            console.log(resultMap);
+            immediateCallback(null, resultMap);
+          },
+          onError: function onError(error) {
+            immediateCallback({message: 'Query the database was not successful.', code: 0, sysErr: error}, null);
+          }
         });
     }]
   }, function(err, resultset) {
     if (err)
       callback({message: 'Error: Something went wrong.', code: 0, sysError: err}, null);
     else {
-      callback(null, results);
+      callback(null, resultset.executeQuery);
     }
   });
 };

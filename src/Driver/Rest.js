@@ -19,6 +19,7 @@ var RestDriver = function() {
       'Content-Length': 0
     }
   };
+  this._graphTypes = [];
 };
 
 /**
@@ -27,6 +28,22 @@ var RestDriver = function() {
  */
 RestDriver.prototype.getType = function() {
   return Driver.DRIVER_TYPE_HTTP;
+};
+
+
+/**
+ *
+ * @param types
+ * @returns {BoltDriver}
+ */
+RestDriver.prototype.setGraphTypes = function(types) {
+  types =  (Array.isArray(types)) ? types : [];
+
+  if (types.length > 0) {
+    this._graphTypes = types;
+  }
+
+  return this;
 };
 
 /**
